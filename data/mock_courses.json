@@ -1,0 +1,137 @@
+[
+  {
+    "code": "CS1101",
+    "name": "计算机导论",
+    "credits": 2.0,
+    "semester": "秋季",
+    "teacher": "张明",
+    "prerequisites": [],
+    "description": "介绍计算机科学的基本概念、发展历程和应用领域，培养计算思维能力。"
+  },
+  {
+    "code": "CS1102",
+    "name": "程序设计基础(C语言)",
+    "credits": 3.0,
+    "semester": "秋季",
+    "teacher": "李华",
+    "prerequisites": ["CS1101"],
+    "description": "学习C语言基本语法、程序结构、数组、函数、指针等，培养程序设计能力。"
+  },
+  {
+    "code": "CS2101",
+    "name": "数据结构",
+    "credits": 3.0,
+    "semester": "春季",
+    "teacher": "王强",
+    "prerequisites": ["CS1102"],
+    "description": "学习线性表、栈、队列、树、图等基本数据结构及排序、查找算法。"
+  },
+  {
+    "code": "CS2102",
+    "name": "计算机组成原理",
+    "credits": 3.0,
+    "semester": "春季",
+    "teacher": "赵刚",
+    "prerequisites": ["CS1102"],
+    "description": "学习计算机硬件系统组成，包括CPU、存储器、输入输出系统等。"
+  },
+  {
+    "code": "CS2201",
+    "name": "面向对象程序设计(Java)",
+    "credits": 3.0,
+    "semester": "秋季",
+    "teacher": "刘芳",
+    "prerequisites": ["CS1102"],
+    "description": "学习Java语言的面向对象特性，包括类、继承、多态、异常处理等。"
+  },
+  {
+    "code": "CS2202",
+    "name": "操作系统",
+    "credits": 3.0,
+    "semester": "秋季",
+    "teacher": "陈伟",
+    "prerequisites": ["CS2101", "CS2102"],
+    "description": "学习进程管理、内存管理、文件系统、设备管理等操作系统核心概念。"
+  },
+  {
+    "code": "CS3101",
+    "name": "数据库原理",
+    "credits": 3.0,
+    "semester": "春季",
+    "teacher": "孙丽",
+    "prerequisites": ["CS2101"],
+    "description": "学习关系数据库理论、SQL语言、数据库设计与优化。"
+  },
+  {
+    "code": "CS3102",
+    "name": "计算机网络",
+    "credits": 3.0,
+    "semester": "春季",
+    "teacher": "周涛",
+    "prerequisites": ["CS2102"],
+    "description": "学习OSI/TCP/IP模型、网络协议、网络安全等计算机网络基础知识。"
+  },
+  {
+    "code": "CS3201",
+    "name": "算法设计与分析",
+    "credits": 3.0,
+    "semester": "秋季",
+    "teacher": "王强",
+    "prerequisites": ["CS2101"],
+    "description": "学习分治、动态规划、贪心、回溯等算法设计策略及复杂度分析方法。"
+  },
+  {
+    "code": "CS3202",
+    "name": "软件工程",
+    "credits": 3.0,
+    "semester": "秋季",
+    "teacher": "张明",
+    "prerequisites": ["CS2201", "CS3101"],
+    "description": "学习软件开发流程、需求分析、设计模式、测试方法和项目管理。"
+  },
+  {
+    "code": "CS4101",
+    "name": "人工智能导论",
+    "credits": 3.0,
+    "semester": "春季",
+    "teacher": "李华",
+    "prerequisites": ["CS3201"],
+    "description": "学习搜索算法、知识表示、机器学习、深度学习等人工智能基础知识。"
+  },
+  {
+    "code": "CS4102",
+    "name": "编译原理",
+    "credits": 3.0,
+    "semester": "春季",
+    "teacher": "赵刚",
+    "prerequisites": ["CS2101", "CS2102"],
+    "description": "学习词法分析、语法分析、语义分析、代码生成等编译器设计技术。"
+  },
+  {
+    "code": "MATH2001",
+    "name": "高等数学(上)",
+    "credits": 5.0,
+    "semester": "秋季",
+    "teacher": "钱学森",
+    "prerequisites": [],
+    "description": "学习函数与极限、导数与微分、不定积分与定积分等微积分基础知识。"
+  },
+  {
+    "code": "MATH2002",
+    "name": "高等数学(下)",
+    "credits": 5.0,
+    "semester": "春季",
+    "teacher": "钱学森",
+    "prerequisites": ["MATH2001"],
+    "description": "学习多元函数微积分、级数、常微分方程等高等数学进阶内容。"
+  },
+  {
+    "code": "MATH3001",
+    "name": "离散数学",
+    "credits": 4.0,
+    "semester": "秋季",
+    "teacher": "孙丽",
+    "prerequisites": ["MATH2001"],
+    "description": "学习集合论、图论、逻辑、代数结构等计算机科学的数学基础。"
+  }
+]
