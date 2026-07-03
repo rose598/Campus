@@ -57,14 +57,14 @@ CREATE TABLE IF NOT EXISTS chunks (
     content TEXT NOT NULL,
     parent_headings TEXT,         -- JSON 数组，如 '["教务处通知","选课通知"]'
     position INTEGER NOT NULL,
-    FOREIGN KEY (doc_id) REFERENCES documents(doc_id)
+    FOREIGN KEY (doc_id) REFERENCES documents(doc_id) ON DELETE CASCADE
 );
 
 -- 向量索引表（存储序列化后的 Embedding）
 CREATE TABLE IF NOT EXISTS embeddings (
     chunk_id TEXT PRIMARY KEY,
     embedding BLOB NOT NULL,      -- 使用 pickle 或 numpy 序列化
-    FOREIGN KEY (chunk_id) REFERENCES chunks(chunk_id)
+    FOREIGN KEY (chunk_id) REFERENCES chunks(chunk_id) ON DELETE CASCADE
 );
 
 -- 语义缓存表

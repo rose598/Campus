@@ -24,10 +24,10 @@ Thumbs.db
 .env
 .env.local
 
-# Data (uncomment if needed)
-# data/raw/
-# data/processed/
-# data/graphcampus.db
+# Data
+data/raw/
+data/processed/
+data/graphcampus.db
 
 # Logs
 *.log
