@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS courses (
     semester TEXT NOT NULL,
     teacher TEXT NOT NULL,
     description TEXT,
-    prerequisites TEXT   -- JSON 数组字符串，如 '["CS1101","MATH2001"]'
+    prerequisites TEXT,           -- JSON 数组字符串，如 '["CS1101","MATH2001"]'
+    created_at REAL DEFAULT (strftime('%s','now')),
+    updated_at REAL DEFAULT (strftime('%s','now'))
 );
 
 -- 教师表
@@ -15,7 +17,9 @@ CREATE TABLE IF NOT EXISTS teachers (
     department TEXT NOT NULL,
     title TEXT,
     email TEXT,
-    research_interests TEXT  -- JSON 数组字符串
+    research_interests TEXT,      -- JSON 数组字符串
+    created_at REAL DEFAULT (strftime('%s','now')),
+    updated_at REAL DEFAULT (strftime('%s','now'))
 );
 
 -- 实验室表
@@ -23,7 +27,9 @@ CREATE TABLE IF NOT EXISTS labs (
     name TEXT PRIMARY KEY,
     director TEXT NOT NULL,
     description TEXT,
-    keywords TEXT             -- JSON 数组字符串
+    keywords TEXT,                -- JSON 数组字符串
+    created_at REAL DEFAULT (strftime('%s','now')),
+    updated_at REAL DEFAULT (strftime('%s','now'))
 );
 
 -- 活动（讲座/竞赛）表
@@ -34,7 +40,8 @@ CREATE TABLE IF NOT EXISTS events (
     date TEXT,
     location TEXT,
     organizer TEXT,
-    url TEXT
+    url TEXT,
+    created_at REAL DEFAULT (strftime('%s','now'))
 );
 
 -- 校园非结构化文档主表
@@ -49,6 +56,10 @@ CREATE TABLE IF NOT EXISTS documents (
     tags TEXT,                    -- JSON 数组字符串
     confidence REAL DEFAULT 1.0
 );
+
+-- 文档索引
+CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
+CREATE INDEX IF NOT EXISTS idx_documents_publish_date ON documents(publish_date);
 
 -- 文档分块表
 CREATE TABLE IF NOT EXISTS chunks (
@@ -85,3 +96,7 @@ CREATE TABLE IF NOT EXISTS logs (
     detail TEXT,                  -- JSON 额外信息
     timestamp REAL NOT NULL
 );
+
+-- 日志索引
+CREATE INDEX IF NOT EXISTS idx_logs_trace_id ON logs(trace_id);
+CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);

@@ -89,7 +89,7 @@ def render_sidebar():
         st.markdown(
             """
             <div style="text-align: center; color: #999; font-size: 0.8rem;">
-                <p>v1.0.0 · 三人团队开发</p>
+                <p>v1.0.0 · 四人团队开发</p>
             </div>
             """,
             unsafe_allow_html=True,

@@ -4,7 +4,7 @@ app:
   debug: false
 
 llm:
-  provider: openai          # openai | qwen | deepseek
+  provider: openai
   model: gpt-4o-mini
   temperature: 0.3
   max_retries: 3
@@ -26,12 +26,15 @@ rag:
   chunk_size: 512
   chunk_overlap: 50
 
+features:
+  activity_push: true
+  campus_qa: true
+  course_summary: true
+  semantic_cache: true
+  offline_mode: false
+  strict_privacy: false
+
 campus_qa:
-  enabled: true
-  indexes:
-    - academic
-    - life
-    - course
   time_decay_lambda: 0.01
   default_expiry_days: 365
 
@@ -48,11 +51,3 @@ logging:
   level: INFO
   format: json
   output: console+file
-# app	应用元信息
-#llm	大模型调用策略与鲁棒性保障
-#embedding	文本向量化模型
-#rag	混合检索（BM25 + 稠密检索）参数
-#campus_qa	校园问答专属行为（索引分类、时效衰减）
-#cache	语义缓存，加速重复问题
-#database	持久化存储（SQLite）
-#logging	日志格式与输出
