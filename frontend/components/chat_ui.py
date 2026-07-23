@@ -112,7 +112,7 @@ def render_chat_input(
         )
 
     if submitted and user_input.strip():
-        add_chat_message("user", user_input.strip())
+        add_chat_message("user", user_input.strip(), history_key)
         return user_input.strip()
 
     return None
@@ -131,7 +131,7 @@ def render_chat_toolbar(history_key: str = "chat_history") -> None:
 
     with col1:
         if st.button("🗑️ 清空对话", key=f"{history_key}_clear"):
-            clear_chat_history()
+            clear_chat_history(history_key)
             st.rerun()
 
     with col2:

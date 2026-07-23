@@ -97,27 +97,38 @@ def set_selected_course(course_code: str) -> None:
     set_state("selected_course", course_code)
 
 
-def get_chat_history() -> list[dict]:
-    """获取聊天历史记录"""
-    return get_state("chat_history", [])
+def get_chat_history(history_key: str = "chat_history") -> list[dict]:
+    """
+    获取聊天历史记录
+
+    Args:
+        history_key: 状态中存储聊天历史的 key（不带前缀）
+    """
+    return get_state(history_key, [])
 
 
-def add_chat_message(role: str, content: str) -> None:
+def add_chat_message(role: str, content: str, history_key: str = "chat_history") -> None:
     """
     添加聊天消息
 
     Args:
         role: 角色（user / assistant）
         content: 消息内容
+        history_key: 状态中存储聊天历史的 key（不带前缀）
     """
-    history = get_chat_history()
+    history = get_chat_history(history_key)
     history.append({"role": role, "content": content})
-    set_state("chat_history", history)
+    set_state(history_key, history)
 
 
-def clear_chat_history() -> None:
-    """清除聊天历史"""
-    set_state("chat_history", [])
+def clear_chat_history(history_key: str = "chat_history") -> None:
+    """
+    清除聊天历史
+
+    Args:
+        history_key: 状态中存储聊天历史的 key（不带前缀）
+    """
+    set_state(history_key, [])
 
 
 def get_user_profile() -> dict:
