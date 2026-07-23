@@ -1,15 +1,14 @@
 """
 GraphCampus 前端页面包
 每个页面模块对应一个独立的功能页
+文件名与规划书对齐：01~05 为主功能页，page_* 为额外页面
 """
 
 __all__ = [
+    "01_activity_push",
+    "02_campus_qa",
+    "03_course_materials",
+    "04_settings",
+    "05_onboarding",
     "page_course_map",
-    "page_course_detail",
-    "page_campus_qa",
-    "page_rag_chat",
-    "page_push_panel",
-    "page_review",
-    "page_privacy",
-    "page_admin",
 ]

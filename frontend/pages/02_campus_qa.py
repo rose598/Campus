@@ -1,14 +1,11 @@
 """
-校园十万个为什么页
+校园知识问答页（02_campus_qa）
 分类 Tab（教务通知/生活指南/课程资料）+ 问答输入框 + 回答展示区
 """
 
 import streamlit as st
 
-from state_sync import get_state, set_state
-
-
-# 注意：页面配置已在 app.py 中统一设置，子页面不再重复调用 st.set_page_config()
+from state_sync import get_state
 
 
 # ── 示例数据（占位，后续接入百事通 Agent）──────────────────────────────────────
@@ -61,7 +58,7 @@ def render_header():
     st.markdown(
         """
         <div style="text-align: center; padding: 1rem 0;">
-            <h1>❓ 校园十万个为什么</h1>
+            <h1>❓ 校园知识问答</h1>
             <p style="color: #666;">有任何校园问题？问我就好！</p>
         </div>
         """,
@@ -74,7 +71,6 @@ def render_category_tabs():
     tab1, tab2, tab3, tab4 = st.tabs(
         ["📋 教务通知", "🏠 生活指南", "📚 课程资料", "🌐 综合查询"]
     )
-
     return tab1, tab2, tab3, tab4
 
 
@@ -114,7 +110,6 @@ def render_hot_questions(category: str):
                 key=f"hot_{category}_{i}",
                 use_container_width=True,
             ):
-                # 直接写入 widget key（不经过 state_sync，否则前缀不匹配）
                 st.session_state["campus_qa_input"] = question
                 st.rerun()
 
@@ -134,12 +129,9 @@ def render_answer_placeholder():
         - 🔗 来源引用卡片（可追溯原文）
         - 💾 语义缓存（秒回常见问题）
         - 📊 多源融合（跨类别综合回答）
-
-        _预计 Day 12 启动百事通子图开发_
         """
     )
 
-    # 占位回答区域
     st.markdown(
         """
         <div style="
@@ -162,8 +154,7 @@ def render_source_cards_placeholder():
     """渲染来源引用卡片占位"""
     st.divider()
     st.markdown("### 📎 来源引用")
-
-    st.warning("来源引用卡片功能开发中，预计 Day 13 完成。")
+    st.warning("来源引用卡片功能开发中。")
 
 
 def render_stats_placeholder():
@@ -188,7 +179,7 @@ def render_stats_placeholder():
 
 # ── 主入口 ──────────────────────────────────────────────
 def main():
-    """校园十万个为什么页主入口"""
+    """校园知识问答页主入口"""
     render_header()
 
     # 分类 Tab
