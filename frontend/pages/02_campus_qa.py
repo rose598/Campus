@@ -80,6 +80,7 @@ MOCK_ANSWERS = {
                 "source": "jwc.example.edu.cn/notice/2026-01",
                 "date": "2026-01-15",
                 "snippet": "补考报名时间为开学第1-2周，逾期不予受理...",
+                "relevance": 0.95,
             },
         ],
     },
@@ -98,12 +99,14 @@ MOCK_ANSWERS = {
                 "source": "jwc.example.edu.cn/policy/transfer",
                 "date": "2025-09-01",
                 "snippet": "转专业申请条件：GPA≥3.0，无不及格记录...",
+                "relevance": 0.92,
             },
             {
                 "title": "2025-2026学年转专业通知",
                 "source": "jwc.example.edu.cn/notice/2026-06",
                 "date": "2026-06-20",
                 "snippet": "申请截止时间为8月31日，笔试时间9月5日...",
+                "relevance": 0.78,
             },
         ],
     },
@@ -118,9 +121,10 @@ MOCK_ANSWERS = {
         "sources": [
             {
                 "title": "校园生活指南 - 快递服务",
-                "source": "campus.guide/express",
+                "source": "https://campus.guide/express",
                 "date": "2026-03-01",
                 "snippet": "校园设有3个快递站点，南门菜鸟驿站支持所有主流快递...",
+                "relevance": 0.88,
             },
         ],
     },
@@ -137,9 +141,10 @@ MOCK_ANSWERS = {
         "sources": [
             {
                 "title": "一卡通使用指南",
-                "source": "card.example.edu.cn/guide",
+                "source": "card.example.edu.cn/guide.pdf",
                 "date": "2025-09-01",
                 "snippet": "校园卡丢失后请先挂失，再携带学生证到一卡通中心补办...",
+                "relevance": 0.91,
             },
         ],
     },
