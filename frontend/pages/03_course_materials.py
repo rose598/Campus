@@ -5,7 +5,7 @@
 
 import streamlit as st
 
-from state_sync import get_state, set_state
+from state_sync import get_state
 
 
 # ── 页面渲染 ──────────────────────────────────────────────

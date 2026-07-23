@@ -88,7 +88,7 @@ def render_step_welcome():
 
     if st.button("跳过引导", use_container_width=True):
         mark_onboarding_completed()
-        set_state("current_page", "course_map")
+        set_state("current_page", "activity_push")
         st.rerun()
 
 
@@ -170,7 +170,7 @@ def render_step_courses():
         if st.button("完成设置 ✅", type="primary", use_container_width=True):
             update_user_profile(completed_courses=selected_courses)
             mark_onboarding_completed()
-            set_state("current_page", "course_map")
+            set_state("current_page", "activity_push")
             st.rerun()
 
 
