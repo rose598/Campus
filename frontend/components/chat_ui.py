@@ -9,6 +9,7 @@ from typing import Optional
 import streamlit as st
 
 from state_sync import get_state, set_state, add_chat_message, get_chat_history, clear_chat_history
+from components.source_card import render_inline_sources
 
 
 # ── 消息气泡 ──────────────────────────────────────────────
@@ -32,30 +33,11 @@ def render_message(role: str, content: str, sources: Optional[list[dict]] = None
             st.markdown(content)
             # 来源引用卡片
             if sources:
-                _render_sources(sources)
+                render_inline_sources(sources)
 
     elif role == "system":
         with st.chat_message("assistant", avatar="ℹ️"):
             st.info(content)
-
-
-def _render_sources(sources: list[dict]) -> None:
-    """渲染消息下方的来源引用卡片"""
-    st.markdown("---")
-    st.markdown("**📎 来源引用：**")
-    for i, src in enumerate(sources, 1):
-        title = src.get("title", "未知来源")
-        source = src.get("source", "")
-        date = src.get("date", "")
-        snippet = src.get("snippet", "")
-
-        with st.expander(f"[{i}] {title}"):
-            if source:
-                st.caption(f"📄 {source}")
-            if date:
-                st.caption(f"📅 {date}")
-            if snippet:
-                st.markdown(f"> {snippet}")
 
 
 # ── 对话历史 ──────────────────────────────────────────────
