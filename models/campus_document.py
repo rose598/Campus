@@ -3,7 +3,7 @@ from typing import Literal, Optional, List
 from datetime import date
 
 class CampusDocument(BaseModel):
-    doc_id: Optional[str] = Field(..., pattern=r"^DOC_\d{8}$", description="文档唯一ID")
+    doc_id: str = Field(..., pattern=r"^DOC_\d{8}$", description="文档唯一ID")
     category: Literal["academic", "life", "course"] = Field(..., description="分类：教务/生活/课程")
     title: str = Field(..., min_length=1, max_length=200, description="文档标题")
     content: str = Field(..., min_length=1, description="原始文本内容")

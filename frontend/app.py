@@ -4,6 +4,8 @@ Streamlit 多页面应用配置 + 侧边栏导航路由
 """
 
 import streamlit as st
+import importlib.util
+from pathlib import Path
 
 from state_sync import get_state, set_state, init_default_state
 
@@ -56,21 +58,18 @@ def render_sidebar():
 
         st.divider()
 
-        # 导航菜单
+        # 导航菜单（文件名与规划书对齐：01~05）
         pages = {
+            "📡 活动推送": "activity_push",
+            "❓ 知识问答": "campus_qa",
+            "📚 课程资料": "course_materials",
             "🗺️ 课程地图": "course_map",
-            "📚 课程详情": "course_detail",
-            "❓ 校园十万个为什么": "campus_qa",
-            "💬 RAG 问答": "rag_chat",
-            "📡 情报推送": "push_panel",
-            "📝 课后复习": "review",
-            "🔒 隐私控制": "privacy",
-            "⚙️ 系统管理": "admin",
+            "⚙️ 系统设置": "settings",
         }
 
         # 初始化当前页面状态
         if not get_state("current_page"):
-            set_state("current_page", "course_map")
+            set_state("current_page", "activity_push")
 
         # 渲染导航按钮
         for label, page_key in pages.items():
@@ -89,7 +88,7 @@ def render_sidebar():
         st.markdown(
             """
             <div style="text-align: center; color: #999; font-size: 0.8rem;">
-                <p>v1.0.0 · 三人团队开发</p>
+                <p>v1.0.0 · 四人团队开发</p>
             </div>
             """,
             unsafe_allow_html=True,
@@ -97,31 +96,45 @@ def render_sidebar():
 
 
 # ── 页面路由 ──────────────────────────────────────────────
+def _load_page_module(file_path: Path):
+    """
+    从文件路径动态加载 Python 模块（支持以数字开头的文件名）
+
+    Args:
+        file_path: 页面 .py 文件路径
+
+    Returns:
+        加载后的模块对象，失败返回 None
+    """
+    if not file_path.exists():
+        return None
+    spec = importlib.util.spec_from_file_location(file_path.stem, str(file_path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def route_page():
     """根据 session_state 路由到对应页面"""
-    current = get_state("current_page", "course_map")
+    current = get_state("current_page", "activity_push")
 
-    # 页面模块映射（模块名不能以数字开头，使用映射表）
-    page_modules = {
-        "course_map": "pages.page_course_map",
-        "course_detail": "pages.page_course_detail",
-        "campus_qa": "pages.page_campus_qa",
-        "rag_chat": "pages.page_rag_chat",
-        "push_panel": "pages.page_push_panel",
-        "review": "pages.page_review",
-        "privacy": "pages.page_privacy",
-        "admin": "pages.page_admin",
+    # 页面文件映射（key → 文件名）
+    page_files = {
+        "activity_push": "01_activity_push.py",
+        "campus_qa": "02_campus_qa.py",
+        "course_materials": "03_course_materials.py",
+        "settings": "04_settings.py",
+        "onboarding": "05_onboarding.py",
+        "course_map": "page_course_map.py",
     }
 
-    # 动态导入页面模块（延迟加载，避免未实现页面阻塞启动）
-    if current in page_modules:
-        try:
-            module = __import__(page_modules[current], fromlist=["main"])
-            # 执行页面模块的 main() 函数来渲染页面
-            if hasattr(module, "main"):
-                module.main()
-        except ImportError:
-            # 页面模块不存在时显示占位页
+    if current in page_files:
+        pages_dir = Path(__file__).parent / "pages"
+        file_path = pages_dir / page_files[current]
+        module = _load_page_module(file_path)
+        if module and hasattr(module, "main"):
+            module.main()
+        else:
             _render_placeholder(current)
     else:
         _render_placeholder(current)
@@ -130,14 +143,12 @@ def route_page():
 def _render_placeholder(page_key: str):
     """渲染占位页面（页面模块未实现时）"""
     page_names = {
+        "activity_push": "活动推送",
+        "campus_qa": "知识问答",
+        "course_materials": "课程资料",
+        "settings": "系统设置",
+        "onboarding": "新手引导",
         "course_map": "课程地图",
-        "course_detail": "课程详情",
-        "campus_qa": "校园十万个为什么",
-        "rag_chat": "RAG 问答",
-        "push_panel": "情报推送",
-        "review": "课后复习",
-        "privacy": "隐私控制",
-        "admin": "系统管理",
     }
 
     name = page_names.get(page_key, page_key)
@@ -149,14 +160,12 @@ def _render_placeholder(page_key: str):
         """
         ---
         ### 开发进度
-        - [ ] 课程地图 - Day 2 骨架
-        - [ ] 课程详情 - Day 5 完成
-        - [ ] 校园十万个为什么 - Day 12 启动
-        - [ ] RAG 问答 - Day 15 启动
-        - [ ] 情报推送 - Day 10 完成
-        - [ ] 课后复习 - Day 22 启动
-        - [ ] 隐私控制 - Day 26 完成
-        - [ ] 系统管理 - Day 27 完成
+        - [x] 活动推送 - Day 5 完成（含分数展示 + 推理链 + 排序筛选）
+        - [x] 知识问答 - Day 6 完成（分类 Tab + 输入框 + 热门问题）
+        - [x] 课程资料 - Day 3 占位（待 Day 15 完善）
+        - [x] 系统设置 - Day 3 占位
+        - [x] 课程地图 - Day 2 骨架
+        - [x] 新手引导 - Day 5 完成（4 步引导流程）
         """
     )
 
