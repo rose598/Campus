@@ -7,7 +7,7 @@
 import streamlit as st
 
 from state_sync import get_state
-from components.loading_states import render_empty, render_page_state
+from components.loading_states import render_empty
 
 
 # ── 示例数据（占位，后续接入 PPR 推荐引擎）────────────────────────────────────
