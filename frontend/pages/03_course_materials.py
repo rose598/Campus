@@ -22,6 +22,11 @@ from components.course_card import (
 # ── 状态 key ──────────────────────────────────────────────
 COURSE_SELECTED_KEY = "course_selected_code"
 COURSE_ERROR_KEY = "course_error_msg"
+COURSE_UPLOAD_HISTORY_KEY = "course_upload_history"
+
+# 文件大小上限（10 MB）
+MAX_FILE_SIZE = 10 * 1024 * 1024
+ALLOWED_EXTENSIONS = {"pdf", "docx", "pptx"}
 
 
 # ── Mock 课程数据（占位，后续接入数据库）──────────────────────
@@ -234,13 +239,45 @@ def render_course_list(courses: list[dict]):
     return None
 
 
-def render_upload_area():
-    """渲染资料上传区域"""
+def _validate_file(file) -> str | None:
+    """
+    验证单个上传文件
+
+    Returns:
+        str 错误信息（None 表示通过）
+    """
+    # 扩展名检查
+    ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        return f"不支持的文件格式 .{ext}，仅支持 PDF / Word / PPT"
+
+    # 文件大小检查
+    if file.size > MAX_FILE_SIZE:
+        size_mb = file.size / 1024 / 1024
+        return f"文件 {file.name} 过大（{size_mb:.1f} MB），上限 10 MB"
+
+    # 空文件检查
+    if file.size == 0:
+        return f"文件 {file.name} 为空"
+
+    return None
+
+
+def _file_type_icon(filename: str) -> str:
+    """根据文件名返回类型图标"""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return {"pdf": "📕", "docx": "📘", "pptx": "📙"}.get(ext, "📄")
+
+
+def render_upload_area(courses: list[dict]):
+    """渲染资料上传区域（Day 16 增强：验证 + 逐文件进度 + 上传历史）"""
     st.divider()
     st.markdown("### 📤 上传课程资料")
 
     # 选择目标课程
-    course_options = [f"{c['course_code']} - {c['course_name']}" for c in MOCK_COURSES]
+    course_options = [
+        f"{c['course_code']} - {c['course_name']}" for c in courses
+    ]
     target_course = st.selectbox(
         "上传到课程",
         ["请选择目标课程"] + course_options,
@@ -248,29 +285,137 @@ def render_upload_area():
     )
 
     uploaded_files = st.file_uploader(
-        "拖拽或点击上传（支持 PDF / Word / PPT）",
-        type=["pdf", "docx", "pptx"],
+        "拖拽或点击上传（支持 PDF / Word / PPT，单文件 ≤ 10 MB）",
+        type=list(ALLOWED_EXTENSIONS),
         accept_multiple_files=True,
         key="course_material_uploader",
     )
 
-    if uploaded_files and target_course != "请选择目标课程":
-        st.success(f"已选择 {len(uploaded_files)} 个文件，目标：{target_course}")
+    if uploaded_files:
+        # ── 文件预验证 ──
+        valid_files = []
+        errors = []
+        for f in uploaded_files:
+            err = _validate_file(f)
+            if err:
+                errors.append(err)
+            else:
+                valid_files.append(f)
+
+        # 显示验证错误
+        for err in errors:
+            st.error(f"❌ {err}")
 
         # 文件列表预览
-        for f in uploaded_files:
-            st.caption(f"📄 {f.name} ({f.size / 1024:.1f} KB)")
+        if valid_files:
+            total_size = sum(f.size for f in valid_files) / 1024
+            st.markdown(
+                f"**已选择 {len(valid_files)} 个有效文件**"
+                f"（共 {total_size:.1f} KB）"
+                + (f"，{len(errors)} 个文件被跳过" if errors else "")
+            )
 
-        if st.button("🚀 开始解析", type="primary", use_container_width=True):
-            # 模拟上传进度
-            progress_bar = st.progress(0, text="正在上传并解析...")
-            for i in range(100):
-                progress_bar.progress(i + 1, text=f"解析中... {i + 1}%")
-            st.success("✅ 解析完成！资料已入库，AI 总结将在后台生成。")
-            st.balloons()
+            for f in valid_files:
+                icon = _file_type_icon(f.name)
+                st.caption(
+                    f"{icon} {f.name} ({f.size / 1024:.1f} KB)"
+                )
 
-    elif uploaded_files and target_course == "请选择目标课程":
-        st.warning("请先选择目标课程")
+            if target_course == "请选择目标课程":
+                st.warning("⚠️ 请先选择目标课程后再开始解析")
+            else:
+                if st.button(
+                    "🚀 开始解析",
+                    type="primary",
+                    use_container_width=True,
+                    key="course_parse_btn",
+                ):
+                    _run_parse_simulation(valid_files, target_course)
+
+    elif target_course != "请选择目标课程":
+        st.info("👆 已选择目标课程，请上传文件")
+
+    # ── 上传历史 ──
+    _render_upload_history()
+
+
+def _run_parse_simulation(files: list, target_course: str):
+    """
+    模拟逐文件解析流程（后续替换为真实后端调用）
+
+    阶段：上传 → 解析 → 知识点提取 → 完成
+    """
+    results = []
+
+    for i, f in enumerate(files):
+        icon = _file_type_icon(f.name)
+        status_text = st.empty()
+        progress_bar = st.empty()
+
+        # 阶段 1/4: 上传
+        status_text.markdown(
+            f"{icon} **{f.name}** — ⬆️ 上传中..."
+        )
+        progress_bar.progress(10)
+
+        # 阶段 2/4: 解析
+        status_text.markdown(
+            f"{icon} **{f.name}** — 📖 解析文档结构..."
+        )
+        progress_bar.progress(35)
+
+        # 阶段 3/4: 知识点提取
+        status_text.markdown(
+            f"{icon} **{f.name}** — 🧠 AI 提取知识点..."
+        )
+        progress_bar.progress(70)
+
+        # 阶段 4/4: 完成
+        progress_bar.progress(100)
+        status_text.markdown(
+            f"{icon} **{f.name}** — ✅ 解析完成"
+        )
+
+        results.append({
+            "filename": f.name,
+            "size": f.size,
+            "course": target_course,
+            "status": "success",
+        })
+
+    # 记录上传历史
+    history = get_state(COURSE_UPLOAD_HISTORY_KEY, [])
+    history.extend(results)
+    set_state(COURSE_UPLOAD_HISTORY_KEY, history)
+
+    st.success(
+        f"🎉 全部完成！{len(results)} 个文件已入库，AI 总结将在后台生成。"
+    )
+    st.balloons()
+
+
+def _render_upload_history():
+    """渲染上传历史记录"""
+    history = get_state(COURSE_UPLOAD_HISTORY_KEY, [])
+    if not history:
+        return
+
+    st.divider()
+    st.markdown("#### 📋 上传历史")
+    st.caption(f"共 {len(history)} 个文件")
+
+    # 最近 10 条
+    recent = history[-10:]
+    for item in reversed(recent):
+        icon = _file_type_icon(item["filename"])
+        size_kb = item["size"] / 1024
+        st.caption(
+            f"{icon} {item['filename']} ({size_kb:.1f} KB)"
+            f" → {item['course']} — ✅"
+        )
+
+    if len(history) > 10:
+        st.caption(f"... 还有 {len(history) - 10} 条历史记录")
 
 
 def render_course_detail(course: dict):
@@ -356,7 +501,7 @@ def main():
         st.rerun()
 
     # ── 上传区域 ──
-    render_upload_area()
+    render_upload_area(MOCK_COURSES)
 
 
 if __name__ == "__main__":

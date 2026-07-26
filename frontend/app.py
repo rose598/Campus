@@ -58,11 +58,12 @@ def render_sidebar():
 
         st.divider()
 
-        # 导航菜单（文件名与规划书对齐：01~05）
+        # 导航菜单（文件名与规划书对齐：01~06）
         pages = {
             "📡 活动推送": "activity_push",
             "❓ 知识问答": "campus_qa",
             "📚 课程资料": "course_materials",
+            "🎓 学伴对话": "study_buddy",
             "🗺️ 课程地图": "course_map",
             "⚙️ 系统设置": "settings",
         }
@@ -123,6 +124,7 @@ def route_page():
         "activity_push": "01_activity_push.py",
         "campus_qa": "02_campus_qa.py",
         "course_materials": "03_course_materials.py",
+        "study_buddy": "06_study_buddy.py",
         "settings": "04_settings.py",
         "onboarding": "05_onboarding.py",
         "course_map": "page_course_map.py",
@@ -146,6 +148,7 @@ def _render_placeholder(page_key: str):
         "activity_push": "活动推送",
         "campus_qa": "知识问答",
         "course_materials": "课程资料",
+        "study_buddy": "学伴对话",
         "settings": "系统设置",
         "onboarding": "新手引导",
         "course_map": "课程地图",
