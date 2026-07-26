@@ -13,7 +13,6 @@ from components.chat_ui import (
     render_chat_toolbar,
 )
 from components.loading_states import render_page_state
-from components.source_card import render_source_cards
 
 
 # ── 状态 key（独立于其他页面）──────────────────────────────────
@@ -292,13 +291,6 @@ def _get_quick_questions(course_code: str) -> list[str]:
         "MA201": ["特征值", "矩阵的逆怎么求", "向量空间基与维数"],
     }
     return questions_map.get(course_code, [])
-
-
-def render_sources_section(sources: list[dict]):
-    """渲染来源引用区域"""
-    if not sources:
-        return
-    render_source_cards(sources, title="📎 来源资料", clickable=False)
 
 
 def handle_buddy_question(question: str, course_code: str) -> None:
