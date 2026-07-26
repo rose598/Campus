@@ -7,6 +7,7 @@
 import streamlit as st
 
 from state_sync import get_state
+from components.loading_states import render_empty, render_page_state
 
 
 # ── 示例数据（占位，后续接入 PPR 推荐引擎）────────────────────────────────────
@@ -63,7 +64,7 @@ def render_header():
     """渲染页面头部"""
     st.markdown(
         """
-        <div style="text-align: center; padding: 1rem 0;">
+        <div style="text-align: center; padding: 0.5rem 0;">
             <h1>📡 活动智能推送</h1>
             <p style="color: #666;">基于你的课程和兴趣，为你精准推荐匹配的讲座、竞赛和科研机会</p>
         </div>
@@ -186,7 +187,11 @@ def render_reason_chain(activity: dict):
 def render_activities_list(activities: list[dict]):
     """渲染活动推荐列表（含推理链展开）"""
     if not activities:
-        st.info("暂无匹配的活动推荐，请调整筛选条件或完善你的兴趣画像。")
+        render_empty(
+            icon="📭",
+            title="暂无匹配的活动推荐",
+            description="请调整筛选条件或完善你的兴趣画像，推荐将更精准",
+        )
         return
 
     for activity in activities:
