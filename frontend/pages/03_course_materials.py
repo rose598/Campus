@@ -4,8 +4,6 @@ Day 15: 完整 UI — 课程列表 + 资料上传 + 总结卡片
 支持课程浏览、资料上传模拟、AI 总结展示
 """
 
-from typing import Optional
-
 import streamlit as st
 
 from state_sync import get_state, set_state
@@ -22,8 +20,7 @@ from components.course_card import (
 
 
 # ── 状态 key ──────────────────────────────────────────────
-COURSE_UPLOAD_KEY = "course_upload_progress"
-COURSE_SELECTED_KEY = "course_selected_idx"
+COURSE_SELECTED_KEY = "course_selected_code"
 COURSE_ERROR_KEY = "course_error_msg"
 
 
@@ -231,7 +228,10 @@ def render_course_list(courses: list[dict]):
 
     # 课程卡片列表
     clicked_idx = render_course_cards(filtered)
-    return clicked_idx
+    if clicked_idx is not None:
+        # 返回排序后列表中的 course_code，而非索引
+        return filtered[clicked_idx].get("course_code")
+    return None
 
 
 def render_upload_area():
@@ -338,16 +338,21 @@ def main():
         return
 
     # ── 课程详情视图 ──
-    selected_idx = get_state(COURSE_SELECTED_KEY)
-    if selected_idx is not None and 0 <= selected_idx < len(MOCK_COURSES):
-        render_course_detail(MOCK_COURSES[selected_idx])
-        return
+    selected_code = get_state(COURSE_SELECTED_KEY)
+    if selected_code:
+        # 按 course_code 查找，避免排序后索引错位
+        course = next((c for c in MOCK_COURSES if c["course_code"] == selected_code), None)
+        if course:
+            render_course_detail(course)
+            return
+        # 课程不存在，清除无效状态
+        set_state(COURSE_SELECTED_KEY, None)
 
     # ── 课程列表视图 ──
-    clicked_idx = render_course_list(MOCK_COURSES)
+    clicked_code = render_course_list(MOCK_COURSES)
 
-    if clicked_idx is not None:
-        set_state(COURSE_SELECTED_KEY, clicked_idx)
+    if clicked_code is not None:
+        set_state(COURSE_SELECTED_KEY, clicked_code)
         st.rerun()
 
     # ── 上传区域 ──

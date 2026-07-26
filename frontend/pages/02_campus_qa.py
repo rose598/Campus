@@ -22,7 +22,6 @@ from components.loading_states import (
 
 # ── 对话历史 key（独立于其他页面）───────────────────────────────
 QA_HISTORY_KEY = "qa_chat_history"
-QA_LOADING_KEY = "qa_is_loading"
 QA_ERROR_KEY = "qa_error_msg"
 
 
