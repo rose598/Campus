@@ -9,10 +9,11 @@
 ## ✨ 核心功能
 
 | 功能 | 说明 | 核心算法 |
-|------|------|---------|
+|------|------|--------|
 | 📡 **活动智能推送** | 根据课程和兴趣推荐匹配的讲座、竞赛、科研机会 | Personalized PageRank |
 | ❓ **校园知识问答** | 保研/转专业/选课等政策问题秒回，带来源引用 | Hybrid RAG (BM25 + Dense) |
 | 📚 **课程资料总结** | 自动收集课件/大纲/期末资料，生成结构化总结 | LLM 提取 + RAG |
+| 🎓 **学伴对话** | 基于已入库课程资料的 RAG 问答，精准回答知识点 | BM25 + Dense RAG |
 
 ---
 
@@ -21,7 +22,8 @@
 ```
 ┌─────────────────────────────────────────────────┐
 │              Streamlit 前端 (角色 B)              │
-│  app.py → 01~05 页面 + chat_ui / source_card    │
+│  app.py → 01~06 页面 + chat_ui / source_card    │
+│  / course_card / loading_states                  │
 └──────────────────────┬──────────────────────────┘
                        │
 ┌──────────────────────┴──────────────────────────┐
@@ -87,22 +89,26 @@ graphcampus/
 │   ├── app.py                       # Streamlit 主入口 + 路由
 │   ├── state_sync.py                # 前端状态同步（session_state 封装）
 │   ├── pages/
-│   │   ├── 01_activity_push.py      # 📡 活动推送页
-│   │   ├── 02_campus_qa.py          # ❓ 知识问答页（对话式）
-│   │   ├── 03_course_materials.py   # 📚 课程资料页
+│   │   ├── 01_activity_push.py      # 📡 活动推送页（分数+推理链+排序筛选）
+│   │   ├── 02_campus_qa.py          # ❓ 知识问答页（对话式+空/加载/错误态）
+│   │   ├── 03_course_materials.py   # 📚 课程资料页（列表+上传+总结+详情）
 │   │   ├── 04_settings.py           # ⚙️ 系统设置页
-│   │   ├── 05_onboarding.py         # 🚀 冷启动引导页
+│   │   ├── 05_onboarding.py         # 🚀 冷启动引导页（4步流程）
+│   │   ├── 06_study_buddy.py        # 🎓 学伴对话页（课程RAG问答）
 │   │   └── page_course_map.py       # 🗺️ 课程地图页
 │   └── components/
-│       ├── chat_ui.py               # 对话 UI 组件
-│       ├── source_card.py           # 来源引用卡片组件
-│       ├── loading_states.py        # 通用状态组件
+│       ├── chat_ui.py               # 对话 UI 组件（气泡/输入/历史/工具栏）
+│       ├── source_card.py           # 来源引用卡片（相关度/类型/高亮/骨架屏）
+│       ├── course_card.py           # 课程概览卡片（列表/总结/空状态）
+│       ├── loading_states.py        # 通用状态组件（空/加载/错误/骨架屏）
 │       └── interrupt_modal.py       # 中断交互弹窗
 ├── agents/                          # 智能体（待实现）
 ├── knowledge_graph/                 # PPR 推荐引擎（待实现）
 ├── rag/                             # 混合检索引擎（待实现）
 ├── campus_qa/                       # 知识问答引擎（待实现）
-├── data_pipeline/                   # 数据管道（待实现）
+├── data_pipeline/                   # 数据管道
+│   ├── doc_parser.py                # 文档解析（PDF/Word/HTML）
+│   └── text_cleaner.py              # 文本清洗（去噪/标准化/去重）
 ├── crawler/                         # 爬虫（待实现）
 ├── tests/                           # 测试（待实现）
 ├── data/
@@ -159,11 +165,14 @@ streamlit run frontend/app.py
 | **数据库** | SQLite 连接 + 建表 DDL + 6 个 CRUD 类 | ✅ |
 | **工具层** | LLM 客户端 / Embedding / 速率限制 / 日志 / 配置加载 / 错误码 | ✅ |
 | **前端骨架** | Streamlit 多页面路由 + 侧边栏导航 | ✅ |
-| **活动推送页** | 推荐列表 + 分数展示 + 推理链 + 排序筛选 | ✅ |
-| **知识问答页** | 分类 Tab + 对话 UI + Mock 百事通 + 来源引用 | ✅ |
+| **活动推送页** | 推荐列表 + 分数展示 + 推理链 + 排序筛选 + 空状态 | ✅ |
+| **知识问答页** | 分类 Tab + 对话 UI + Mock 百事通 + 来源引用 + 欢迎引导 + 错误态 | ✅ |
+| **课程资料页** | 课程列表 + 搜索排序 + 详情（大纲/重点/考核） + 资料上传（验证+逐文件进度+历史） | ✅ |
+| **学伴对话页** | 课程筛选 + 对话 UI + Mock RAG 引擎 + 来源引用 + 欢迎引导 | ✅ |
 | **冷启动引导** | 4 步引导流程（欢迎→专业→兴趣→课程） | ✅ |
-| **通用组件** | chat_ui / source_card / loading_states / interrupt_modal | ✅ |
-| **状态管理** | state_sync 封装 + 多页面独立聊天历史 | ✅ |
+| **通用组件** | chat_ui / source_card / course_card / loading_states / interrupt_modal | ✅ |
+| **状态管理** | state_sync 封装 + 多页面独立聊天历史（history_key） | ✅ |
+| **数据管道** | 文档解析器（PDF/Word/HTML） + 文本清洗 | ✅ |
 
 ### 待实现 🚧
 
@@ -173,7 +182,7 @@ streamlit run frontend/app.py
 | **knowledge_graph/** | PPR 推荐引擎 |
 | **rag/** | BM25 + Dense + Hybrid + Query Rewriting + 语义缓存 |
 | **campus_qa/** | 意图分类 + 路由 + 时间排序 + 融合 + 引用格式化 |
-| **data_pipeline/** | 文档解析 + 清洗 + 分块 + 标注 + 索引构建 |
+| **data_pipeline/** | 元数据标注 + 索引构建 |
 | **crawler/** | 政策爬虫 + 活动爬虫 |
 | **tests/** | 单元测试 + 集成测试 |
 | **docker/** | Dockerfile + CI/CD |
