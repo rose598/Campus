@@ -17,8 +17,6 @@ FEATURE_ENTRIES = [
         "title": "活动智能推送",
         "description": "根据你的课程和兴趣，精准推荐匹配的讲座、竞赛和科研机会",
         "color": "#1976d2",
-        "stats_label": "推荐活动",
-        "stats_value": "12 个",
     },
     {
         "key": "campus_qa",
@@ -26,8 +24,6 @@ FEATURE_ENTRIES = [
         "title": "校园知识问答",
         "description": "保研/转专业/选课等政策问题秒回，附带来源引用",
         "color": "#388e3c",
-        "stats_label": "累计问答",
-        "stats_value": "—",
     },
     {
         "key": "course_materials",
@@ -35,8 +31,6 @@ FEATURE_ENTRIES = [
         "title": "课程资料总结",
         "description": "上传课件/大纲/期末资料，AI 自动提取重点并生成结构化总结",
         "color": "#f57c00",
-        "stats_label": "已入库课程",
-        "stats_value": "5 门",
     },
 ]
 
