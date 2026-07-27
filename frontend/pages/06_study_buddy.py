@@ -307,26 +307,28 @@ def handle_buddy_question(question: str, course_code: str) -> None:
 
     add_chat_message("user", question, BUDDY_HISTORY_KEY)
 
-    try:
-        answer = mock_buddy_rag(question, course_code)
+    # 使用 st.spinner 显示加载状态
+    with st.spinner("🤔 学伴正在从课程资料中查找答案..."):
+        try:
+            answer = mock_buddy_rag(question, course_code)
 
-        history = get_state(BUDDY_HISTORY_KEY, [])
-        history.append({
-            "role": "assistant",
-            "content": answer["content"],
-            "sources": answer.get("sources"),
-        })
-        set_state(BUDDY_HISTORY_KEY, history)
+            history = get_state(BUDDY_HISTORY_KEY, [])
+            history.append({
+                "role": "assistant",
+                "content": answer["content"],
+                "sources": answer.get("sources"),
+            })
+            set_state(BUDDY_HISTORY_KEY, history)
 
-    except Exception as e:
-        set_state(BUDDY_ERROR_KEY, f"学伴引擎异常: {str(e)}")
-        set_state(BUDDY_ERROR_CODE_KEY, "E001")
-        history = get_state(BUDDY_HISTORY_KEY, [])
-        history.append({
-            "role": "system",
-            "content": render_chat_error_message("E001"),
-        })
-        set_state(BUDDY_HISTORY_KEY, history)
+        except Exception as e:
+            set_state(BUDDY_ERROR_KEY, f"学伴引擎异常: {str(e)}")
+            set_state(BUDDY_ERROR_CODE_KEY, "E001")
+            history = get_state(BUDDY_HISTORY_KEY, [])
+            history.append({
+                "role": "system",
+                "content": render_chat_error_message("E001"),
+            })
+            set_state(BUDDY_HISTORY_KEY, history)
 
 
 def render_stats(course_code: str):

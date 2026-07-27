@@ -351,30 +351,32 @@ def handle_question(question: str) -> None:
     # 记录用户消息
     add_chat_message("user", question, QA_HISTORY_KEY)
 
-    try:
-        # 调用 Mock 问答引擎
-        answer = mock_qa_engine(question)
+    # 使用 st.spinner 显示加载状态
+    with st.spinner("🔍 百事通正在知识库中检索答案..."):
+        try:
+            # 调用 Mock 问答引擎
+            answer = mock_qa_engine(question)
 
-        # 记录助手回答（含来源引用）
-        history = get_state(QA_HISTORY_KEY, [])
-        history.append({
-            "role": "assistant",
-            "content": answer["content"],
-            "sources": answer.get("sources"),
-        })
-        set_state(QA_HISTORY_KEY, history)
+            # 记录助手回答（含来源引用）
+            history = get_state(QA_HISTORY_KEY, [])
+            history.append({
+                "role": "assistant",
+                "content": answer["content"],
+                "sources": answer.get("sources"),
+            })
+            set_state(QA_HISTORY_KEY, history)
 
-    except Exception as e:
-        # 记录错误状态（E001 = LLM 服务不可用）
-        set_state(QA_ERROR_KEY, f"问答引擎异常: {str(e)}")
-        set_state(QA_ERROR_CODE_KEY, "E001")
-        # 添加错误提示消息
-        history = get_state(QA_HISTORY_KEY, [])
-        history.append({
-            "role": "system",
-            "content": render_chat_error_message("E001"),
-        })
-        set_state(QA_HISTORY_KEY, history)
+        except Exception as e:
+            # 记录错误状态（E001 = LLM 服务不可用）
+            set_state(QA_ERROR_KEY, f"问答引擎异常: {str(e)}")
+            set_state(QA_ERROR_CODE_KEY, "E001")
+            # 添加错误提示消息
+            history = get_state(QA_HISTORY_KEY, [])
+            history.append({
+                "role": "system",
+                "content": render_chat_error_message("E001"),
+            })
+            set_state(QA_HISTORY_KEY, history)
 
 
 # ── 主入口 ──────────────────────────────────────────────────────

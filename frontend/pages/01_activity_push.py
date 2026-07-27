@@ -7,13 +7,14 @@
 import streamlit as st
 
 from state_sync import get_state, set_state
-from components.loading_states import render_empty
+from components.loading_states import render_empty, render_loading
 from components.error_handler import render_error_page
 
 
 # ── 状态 key ────────────────────────────────────────────
 ACTIVITY_ERROR_KEY = "activity_error_msg"
 ACTIVITY_ERROR_CODE_KEY = "activity_error_code"
+ACTIVITY_LOADING_KEY = "activity_loading"
 
 
 # ── 示例数据（占位，后续接入 PPR 推荐引擎）────────────────────────────────────
@@ -193,11 +194,16 @@ def render_reason_chain(activity: dict):
 def render_activities_list(activities: list[dict]):
     """渲染活动推荐列表（含推理链展开）"""
     if not activities:
-        render_empty(
+        clicked = render_empty(
             icon="📭",
             title="暂无匹配的活动推荐",
             description="请调整筛选条件或完善你的兴趣画像，推荐将更精准",
+            action_label="🚀 完善兴趣画像",
+            action_key="empty_goto_onboarding",
         )
+        if clicked:
+            set_state("current_page", "onboarding")
+            st.rerun()
         return
 
     for activity in activities:
@@ -263,6 +269,11 @@ def main():
 
     # 活动列表
     render_activities_list(activities)
+
+    # 加载态指示（PPR 引擎后续接入时显示）
+    if get_state(ACTIVITY_LOADING_KEY, False):
+        render_loading("推荐引擎正在计算匹配分数...")
+        set_state(ACTIVITY_LOADING_KEY, False)
 
 
 if __name__ == "__main__":

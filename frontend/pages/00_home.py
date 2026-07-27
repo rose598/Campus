@@ -7,6 +7,12 @@ Day 20: 集成三功能入口 + 个人统计 + 快捷操作
 import streamlit as st
 
 from state_sync import get_state, set_state, get_user_profile, is_onboarding_completed
+from components.error_handler import render_error_page
+
+
+# ── 状态 key ──────────────────────────────────────────────
+HOME_ERROR_KEY = "home_error_msg"
+HOME_ERROR_CODE_KEY = "home_error_code"
 
 
 # ── 功能入口配置 ──────────────────────────────────────────────
@@ -55,7 +61,11 @@ EXTRA_ENTRIES = [
 
 def render_header():
     """渲染欢迎头部"""
-    profile = get_user_profile()
+    try:
+        profile = get_user_profile()
+    except Exception:
+        profile = {}
+
     major = profile.get("major")
     interests = profile.get("interests", [])
     completed_courses = profile.get("completed_courses", [])
@@ -178,12 +188,18 @@ def render_stats_section():
     st.divider()
     st.markdown("### 📊 数据概览")
 
-    # 动态统计
-    qa_history = get_state("qa_chat_history", [])
-    qa_count = sum(1 for m in qa_history if m.get("role") == "user")
+    # 动态统计（带容错）
+    try:
+        qa_history = get_state("qa_chat_history", [])
+        qa_count = sum(1 for m in qa_history if m.get("role") == "user")
+    except Exception:
+        qa_count = 0
 
-    buddy_history = get_state("buddy_chat_history", [])
-    buddy_count = sum(1 for m in buddy_history if m.get("role") == "user")
+    try:
+        buddy_history = get_state("buddy_chat_history", [])
+        buddy_count = sum(1 for m in buddy_history if m.get("role") == "user")
+    except Exception:
+        buddy_count = 0
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -246,6 +262,19 @@ def render_onboarding_hint():
 
 def main():
     """首页主入口"""
+    # ── 错误态检测 ──
+    error_msg = get_state(HOME_ERROR_KEY)
+    if error_msg:
+        error_code = get_state(HOME_ERROR_CODE_KEY, "E007")
+
+        def clear_error():
+            set_state(HOME_ERROR_KEY, None)
+            set_state(HOME_ERROR_CODE_KEY, None)
+
+        if render_error_page(error_code, detail=error_msg, clear_callback=clear_error):
+            st.rerun()
+        return
+
     render_header()
     render_onboarding_hint()
     render_feature_cards()
