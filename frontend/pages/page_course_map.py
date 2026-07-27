@@ -181,7 +181,7 @@ def render_course_card(course: dict):
             use_container_width=True,
         ):
             set_state("selected_course", course["code"])
-            set_state("current_page", "course_detail")
+            set_state("current_page", "course_materials")
             st.rerun()
 
 
