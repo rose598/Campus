@@ -121,12 +121,25 @@ def render_error(
     Args:
         title: 错误标题
         message: 错误详情
-        error_code: 错误码（如 E001）
+        error_code: 错误码（如 E001），若提供则自动从 error_handler 获取美化信息
         retry_key: 重试按钮 widget key（None 则不显示按钮）
 
     Returns:
         bool: 重试按钮是否被点击（无按钮时返回 False）
     """
+    # 若有错误码，尝试从 error_handler 获取美化信息
+    if error_code:
+        try:
+            from components.error_handler import get_error_info
+            info = get_error_info(error_code)
+            title = f"{info['icon']} {info['title']}"
+            message = f"{info['message']}\n\n💡 {info['fallback']}"
+            # 若未指定 retry_key 但该错误码支持重试，自动生成
+            if retry_key is None and info.get("retry"):
+                retry_key = f"auto_retry_{error_code}"
+        except ImportError:
+            pass
+
     error_display = f"`{error_code}` · " if error_code else ""
 
     st.error(

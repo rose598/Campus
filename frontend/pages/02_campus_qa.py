@@ -18,11 +18,13 @@ from components.chat_ui import (
 from components.loading_states import (
     render_page_state,
 )
+from components.error_handler import render_chat_error_message, render_error_page
 
 
 # ── 对话历史 key（独立于其他页面）───────────────────────────────
 QA_HISTORY_KEY = "qa_chat_history"
 QA_ERROR_KEY = "qa_error_msg"
+QA_ERROR_CODE_KEY = "qa_error_code"
 
 
 # ── 热门问题（按分类）──────────────────────────────────────────
@@ -363,13 +365,14 @@ def handle_question(question: str) -> None:
         set_state(QA_HISTORY_KEY, history)
 
     except Exception as e:
-        # 记录错误状态
+        # 记录错误状态（E001 = LLM 服务不可用）
         set_state(QA_ERROR_KEY, f"问答引擎异常: {str(e)}")
+        set_state(QA_ERROR_CODE_KEY, "E001")
         # 添加错误提示消息
         history = get_state(QA_HISTORY_KEY, [])
         history.append({
             "role": "system",
-            "content": "⚠️ 百事通暂时无法回答，请稍后重试。错误码: E003",
+            "content": render_chat_error_message("E001"),
         })
         set_state(QA_HISTORY_KEY, history)
 
@@ -383,14 +386,13 @@ def main():
     # ── 错误态检测 ──
     error_msg = get_state(QA_ERROR_KEY)
     if error_msg:
-        render_page_state(
-            is_error=True,
-            error_title="问答服务异常",
-            error_msg=error_msg,
-            error_code="E003",
-        )
-        if st.button("🔄 清除错误并返回", use_container_width=True, key="qa_clear_error"):
+        error_code = get_state(QA_ERROR_CODE_KEY, "E001")
+
+        def clear_error():
             set_state(QA_ERROR_KEY, None)
+            set_state(QA_ERROR_CODE_KEY, None)
+
+        if render_error_page(error_code, detail=error_msg, clear_callback=clear_error):
             st.rerun()
         return
 

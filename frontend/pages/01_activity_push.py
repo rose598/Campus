@@ -6,8 +6,14 @@
 
 import streamlit as st
 
-from state_sync import get_state
+from state_sync import get_state, set_state
 from components.loading_states import render_empty
+from components.error_handler import render_error_page
+
+
+# ── 状态 key ────────────────────────────────────────────
+ACTIVITY_ERROR_KEY = "activity_error_msg"
+ACTIVITY_ERROR_CODE_KEY = "activity_error_code"
 
 
 # ── 示例数据（占位，后续接入 PPR 推荐引擎）────────────────────────────────────
@@ -230,6 +236,19 @@ def render_user_profile_hint():
 def main():
     """活动推送页主入口"""
     render_header()
+
+    # ── 错误态检测 ──
+    error_msg = get_state(ACTIVITY_ERROR_KEY)
+    if error_msg:
+        error_code = get_state(ACTIVITY_ERROR_CODE_KEY, "E001")
+
+        def clear_error():
+            set_state(ACTIVITY_ERROR_KEY, None)
+            set_state(ACTIVITY_ERROR_CODE_KEY, None)
+
+        if render_error_page(error_code, detail=error_msg, clear_callback=clear_error):
+            st.rerun()
+        return
 
     # 用户兴趣提示
     render_user_profile_hint()
