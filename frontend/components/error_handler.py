@@ -4,8 +4,6 @@ Day 22: 兜底交互 + 错误提示美化
 将 ErrorCode 体系与前端 UI 打通，提供统一的错误展示、重试、降级兜底
 """
 
-from typing import Optional
-
 import streamlit as st
 
 
