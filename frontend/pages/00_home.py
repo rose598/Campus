@@ -57,6 +57,8 @@ def render_header():
     """渲染欢迎头部"""
     profile = get_user_profile()
     major = profile.get("major")
+    interests = profile.get("interests", [])
+    completed_courses = profile.get("completed_courses", [])
 
     # 问候语
     greeting = "欢迎回来" if is_onboarding_completed() else "你好"
@@ -81,6 +83,40 @@ def render_header():
         """,
         unsafe_allow_html=True,
     )
+
+    # 用户画像摘要（已完成引导时显示）
+    if is_onboarding_completed() and (major or interests or completed_courses):
+        _render_profile_summary(major, interests, completed_courses)
+
+
+def _render_profile_summary(major, interests, completed_courses):
+    """渲染用户画像摘要卡片"""
+    st.markdown("#### 👤 我的画像")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(f"**🎓 专业**\n\n{major or '未设置'}")
+
+    with col2:
+        if interests:
+            tags_html = " ".join(
+                f"`{tag}`" for tag in interests[:5]
+            )
+            extra = f" +{len(interests) - 5}" if len(interests) > 5 else ""
+            st.markdown(f"**🎯 兴趣方向**\n\n{tags_html}{extra}")
+        else:
+            st.markdown("**🎯 兴趣方向**\n\n未设置")
+
+    with col3:
+        if completed_courses:
+            courses_text = "、".join(completed_courses[:4])
+            extra = f"等 {len(completed_courses)} 门" if len(completed_courses) > 4 else ""
+            st.markdown(f"**📚 已修课程**\n\n{courses_text}{extra}")
+        else:
+            st.markdown("**📚 已修课程**\n\n未设置")
+
+    st.divider()
 
 
 def render_feature_cards():
@@ -186,6 +222,14 @@ def render_extra_entries():
 
 def render_onboarding_hint():
     """渲染新手引导提示（未完成时显示）"""
+    # 刚完成引导时显示成功提示
+    just_completed = get_state("onboarding_just_completed", False)
+    if just_completed:
+        st.success(
+            "🎉 **设置完成！** 你的个人画像已保存，活动推荐将更精准。"
+        )
+        set_state("onboarding_just_completed", False)
+
     if is_onboarding_completed():
         return
 

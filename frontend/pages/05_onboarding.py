@@ -167,9 +167,68 @@ def render_step_courses():
             st.rerun()
 
     with col_next:
-        if st.button("完成设置 ✅", type="primary", use_container_width=True):
+        if st.button("下一步 → 查看摘要", type="primary", use_container_width=True):
             update_user_profile(completed_courses=selected_courses)
+            set_state("onboarding_step", 4)
+            st.rerun()
+
+
+def render_step_done():
+    """渲染完成预览步骤（展示用户画像摘要后进入首页）"""
+    from state_sync import get_user_profile
+
+    profile = get_user_profile()
+    major = profile.get("major", "未设置")
+    interests = profile.get("interests", [])
+    completed_courses = profile.get("completed_courses", [])
+
+    st.markdown("### ✅ 设置完成！")
+
+    st.markdown(
+        """
+        <div style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            color: white;
+            text-align: center;
+            margin: 1rem 0;
+        ">
+            <div style="font-size: 2rem; margin-bottom: 0.3rem;">🎉</div>
+            <div style="font-size: 1.1rem; font-weight: 600;">个人画像已生成</div>
+            <div style="font-size: 0.85rem; margin-top: 0.3rem; opacity: 0.85;">
+                你的推荐将更加精准
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 画像摘要
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"**🎓 专业**\n\n{major}")
+    with col2:
+        interest_text = "、".join(interests[:4]) if interests else "未选择"
+        extra = f" +{len(interests) - 4}" if len(interests) > 4 else ""
+        st.markdown(f"**🎯 兴趣**\n\n{interest_text}{extra}")
+    with col3:
+        course_text = "、".join(completed_courses[:3]) if completed_courses else "未选择"
+        extra = f"等 {len(completed_courses)} 门" if len(completed_courses) > 3 else ""
+        st.markdown(f"**📚 已修**\n\n{course_text}{extra}")
+
+    st.markdown("---")
+
+    col_back, col_next = st.columns(2)
+    with col_back:
+        if st.button("← 修改课程", use_container_width=True):
+            set_state("onboarding_step", 3)
+            st.rerun()
+
+    with col_next:
+        if st.button("🏠 进入首页", type="primary", use_container_width=True):
             mark_onboarding_completed()
+            set_state("onboarding_just_completed", True)
             set_state("current_page", "home")
             st.rerun()
 
@@ -198,8 +257,10 @@ def main():
         render_step_major()
     elif current_step == 2:
         render_step_interests()
-    elif current_step >= 3:
+    elif current_step == 3:
         render_step_courses()
+    elif current_step >= 4:
+        render_step_done()
 
 
 if __name__ == "__main__":
