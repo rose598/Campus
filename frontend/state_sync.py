@@ -79,7 +79,7 @@ def clear_all_state() -> None:
 # ── 业务状态快捷接口 ──────────────────────────────────────────────
 def get_current_page() -> str:
     """获取当前页面标识"""
-    return get_state("current_page", "activity_push")
+    return get_state("current_page", "home")
 
 
 def set_current_page(page: str) -> None:
@@ -164,7 +164,7 @@ def mark_onboarding_completed() -> None:
 def init_default_state() -> None:
     """初始化应用默认状态（应用启动时调用）"""
     defaults = {
-        "current_page": "activity_push",
+        "current_page": "home",
         "selected_course": None,
         "chat_history": [],
         "user_profile": {

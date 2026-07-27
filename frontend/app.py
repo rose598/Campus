@@ -58,8 +58,9 @@ def render_sidebar():
 
         st.divider()
 
-        # 导航菜单（文件名与规划书对齐：01~06）
+        # 导航菜单（文件名与规划书对齐：00~06）
         pages = {
+            "🏠 首页": "home",
             "📡 活动推送": "activity_push",
             "❓ 知识问答": "campus_qa",
             "📚 课程资料": "course_materials",
@@ -70,7 +71,7 @@ def render_sidebar():
 
         # 初始化当前页面状态
         if not get_state("current_page"):
-            set_state("current_page", "activity_push")
+            set_state("current_page", "home")
 
         # 渲染导航按钮
         for label, page_key in pages.items():
@@ -117,10 +118,11 @@ def _load_page_module(file_path: Path):
 
 def route_page():
     """根据 session_state 路由到对应页面"""
-    current = get_state("current_page", "activity_push")
+    current = get_state("current_page", "home")
 
     # 页面文件映射（key → 文件名）
     page_files = {
+        "home": "00_home.py",
         "activity_push": "01_activity_push.py",
         "campus_qa": "02_campus_qa.py",
         "course_materials": "03_course_materials.py",
@@ -145,6 +147,7 @@ def route_page():
 def _render_placeholder(page_key: str):
     """渲染占位页面（页面模块未实现时）"""
     page_names = {
+        "home": "首页",
         "activity_push": "活动推送",
         "campus_qa": "知识问答",
         "course_materials": "课程资料",
