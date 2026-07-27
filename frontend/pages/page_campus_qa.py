@@ -5,7 +5,6 @@
 
 import streamlit as st
 
-from state_sync import get_state, set_state
 
 
 # 注意：页面配置已在 app.py 中统一设置，子页面不再重复调用 st.set_page_config()

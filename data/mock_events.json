@@ -1,0 +1,122 @@
+[
+  {
+    "title": "大模型前沿技术讲座",
+    "event_type": "讲座",
+    "date": "2026-09-15T14:00:00",
+    "location": "学术报告厅A101",
+    "organizer": "计算机学院",
+    "url": "https://example.edu/events/llm-talk",
+    "tags": ["人工智能", "大模型", "深度学习"],
+    "related_courses": ["CS4101"]
+  },
+  {
+    "title": "ACM程序设计竞赛校内选拔",
+    "event_type": "竞赛",
+    "date": "2026-09-20T09:00:00",
+    "location": "计算机实验中心B203",
+    "organizer": "ACM集训队",
+    "url": "https://example.edu/events/acm-tryout",
+    "tags": ["算法", "编程", "竞赛"],
+    "related_courses": ["CS3201", "CS1102"]
+  },
+  {
+    "title": "大数据实验室招募本科生科研助理",
+    "event_type": "科研机会",
+    "date": "2026-09-10T00:00:00",
+    "location": "计算机大楼501",
+    "organizer": "大数据实验室",
+    "url": "https://example.edu/events/bigdata-ra",
+    "tags": ["数据挖掘", "大数据", "机器学习"],
+    "related_courses": ["CS4101", "CS3101"]
+  },
+  {
+    "title": "Git与团队协作实战工作坊",
+    "event_type": "工作坊",
+    "date": "2026-09-25T15:00:00",
+    "location": "软件工程实验室C102",
+    "organizer": "软件学院",
+    "url": "https://example.edu/events/git-workshop",
+    "tags": ["Git", "团队协作", "版本控制"],
+    "related_courses": ["CS3202"]
+  },
+  {
+    "title": "量子计算入门讲座",
+    "event_type": "讲座",
+    "date": "2026-10-08T14:00:00",
+    "location": "理学院报告厅",
+    "organizer": "物理学院",
+    "url": "https://example.edu/events/quantum-intro",
+    "tags": ["量子计算", "前沿技术"],
+    "related_courses": []
+  },
+  {
+    "title": "全国大学生数学建模竞赛校内选拔",
+    "event_type": "竞赛",
+    "date": "2026-10-12T08:00:00",
+    "location": "数学建模实验室D301",
+    "organizer": "数学学院",
+    "url": "https://example.edu/events/mathmodel-contest",
+    "tags": ["数学建模", "优化", "MATLAB"],
+    "related_courses": ["MATH3001", "MATH2002"]
+  },
+  {
+    "title": "网络空间安全课题组招收本科生",
+    "event_type": "科研机会",
+    "date": "2026-10-15T00:00:00",
+    "location": "网络空间安全实验室408",
+    "organizer": "信息安全实验室",
+    "url": "https://example.edu/events/cybersecurity-ra",
+    "tags": ["网络安全", "密码学", "协议"],
+    "related_courses": ["CS3102"]
+  },
+  {
+    "title": "从校园到职场：软件工程师成长之路",
+    "event_type": "讲座",
+    "date": "2026-10-20T15:00:00",
+    "location": "学生活动中心多功能厅",
+    "organizer": "就业指导中心",
+    "url": "https://example.edu/events/career-se",
+    "tags": ["职业规划", "软件工程", "面试"],
+    "related_courses": ["CS3202", "CS2201"]
+  },
+  {
+    "title": "Python数据科学训练营",
+    "event_type": "工作坊",
+    "date": "2026-10-25T09:00:00",
+    "location": "计算机实验中心A201",
+    "organizer": "数据科学协会",
+    "url": "https://example.edu/events/python-ds-camp",
+    "tags": ["Python", "数据科学", "可视化"],
+    "related_courses": []
+  },
+  {
+    "title": "中国大学生计算机设计大赛校内选拔",
+    "event_type": "竞赛",
+    "date": "2026-11-01T08:00:00",
+    "location": "创新实验室B101",
+    "organizer": "创新创业学院",
+    "url": "https://example.edu/events/design-contest",
+    "tags": ["设计", "创新", "计算机应用"],
+    "related_courses": ["CS1101", "CS3202"]
+  },
+  {
+    "title": "嵌入式系统与物联网课题组招募",
+    "event_type": "科研机会",
+    "date": "2026-11-05T00:00:00",
+    "location": "嵌入式系统实验室306",
+    "organizer": "物联网研究中心",
+    "url": "https://example.edu/events/embedded-ra",
+    "tags": ["嵌入式", "物联网", "ARM"],
+    "related_courses": ["CS2102"]
+  },
+  {
+    "title": "编译技术的昨天今天明天",
+    "event_type": "讲座",
+    "date": "2026-11-10T14:00:00",
+    "location": "学术报告厅A102",
+    "organizer": "计算机学院",
+    "url": "https://example.edu/events/compiler-talk",
+    "tags": ["编译原理", "LLVM", "GCC"],
+    "related_courses": ["CS4102", "CS2101"]
+  }
+]

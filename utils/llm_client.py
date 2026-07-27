@@ -117,6 +117,15 @@ class CircuitBreaker:
             return False
         return True
 
+    @property
+    def is_open(self) -> bool:
+        with self._lock:
+            return self._is_open()
+
+    @property
+    def failure_count(self) -> int:
+        return self._failure_count
+
 
 class CircuitBreakerOpenError(Exception):
     pass

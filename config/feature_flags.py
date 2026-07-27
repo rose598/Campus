@@ -1,23 +1,20 @@
-"""特征开关 – 运行时可通过 API 或管理界面修改，初始值从 config.yaml 加载"""
-import sys
-from pathlib import Path
+"""特征开关 – 线程安全、支持动态注册和函数级拦截"""
 
-# 将项目根目录加入 sys.path，以便导入 utils
-_ROOT = Path(__file__).resolve().parent.parent
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+import threading
+from functools import wraps
+
+import utils.config_loader as _cfg
+from utils.error_codes import GraphCampusError, ErrorCode
 
 
 def _load_flags_from_config() -> dict:
     """从 config.yaml 的 features 段加载特征开关初始值"""
     try:
-        from utils.config_loader import get
-        features = get("features")
+        features = _cfg.get("features")
         if isinstance(features, dict):
             return features
     except Exception:
         pass
-    # 配置加载失败时的默认值
     return {
         "activity_push": True,
         "campus_qa": True,
@@ -29,22 +26,55 @@ def _load_flags_from_config() -> dict:
 
 
 class FeatureFlags:
+    """特征开关 —— 线程安全，支持运行时修改和动态注册"""
+
     _flags: dict = _load_flags_from_config()
+    _lock = threading.Lock()
 
     @classmethod
     def is_enabled(cls, flag: str) -> bool:
-        return cls._flags.get(flag, False)
+        with cls._lock:
+            return cls._flags.get(flag, False)
 
     @classmethod
     def set_flag(cls, flag: str, value: bool) -> None:
-        if flag in cls._flags:
+        with cls._lock:
             cls._flags[flag] = value
 
     @classmethod
+    def register_flag(cls, flag: str, default: bool = False) -> None:
+        with cls._lock:
+            if flag not in cls._flags:
+                cls._flags[flag] = default
+
+    @classmethod
     def get_all(cls) -> dict:
-        return cls._flags.copy()
+        with cls._lock:
+            return cls._flags.copy()
 
     @classmethod
     def reload(cls) -> None:
-        """从 config.yaml 重新加载特征开关"""
-        cls._flags = _load_flags_from_config()
+        with cls._lock:
+            _cfg.reload()
+            cls._flags = _load_flags_from_config()
+
+
+def require_feature(flag_name: str):
+    """装饰器：被装饰函数调用时，若对应特征关闭则抛出 GraphCampusError(E008)
+
+    用法:
+        @require_feature("activity_push")
+        def recommend_activities():
+            ...
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if not FeatureFlags.is_enabled(flag_name):
+                raise GraphCampusError(
+                    ErrorCode.E008,
+                    detail=f"feature '{flag_name}' is disabled",
+                )
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator

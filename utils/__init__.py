@@ -1,4 +1,22 @@
-__all__ = ["LLMClient", "EmbeddingClient", "RateLimiter", "Tracer", "GraphCampusError", "ErrorCode"]
+try:
+    from .llm_client import LLMClient
+    _llm_available = True
+except Exception:
+    LLMClient = None
+    _llm_available = False
+
+try:
+    from .embedding_client import EmbeddingClient
+    _embedding_available = True
+except Exception:
+    EmbeddingClient = None
+    _embedding_available = False
+
+from .rate_limiter import RateLimiter
+from .tracer import Tracer
+from .error_codes import GraphCampusError, ErrorCode
+
+__all__ = ["LLMClient", "EmbeddingClient", "RateLimiter", "Tracer", "GraphCampusError", "ErrorCode", "run_health_check"]
 
 _llm_client_instance = None
 _rate_limiter_instance = None
@@ -32,3 +50,8 @@ def get_tracer(**kwargs):
     """创建新的 Tracer 实例（每次请求应创建新实例）"""
     from .tracer import Tracer
     return Tracer(**kwargs)
+
+
+def run_health_check(full: bool = False):
+    from .health import run_health_check as _check
+    return _check(full=full)

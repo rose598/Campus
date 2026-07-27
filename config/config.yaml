@@ -19,6 +19,8 @@ embedding:
   device: cpu
 
 rag:
+  bm25_k1: 1.5
+  bm25_b: 0.75
   bm25_top_k: 5
   dense_top_k: 5
   rrf_k: 60
@@ -51,3 +53,11 @@ logging:
   level: INFO
   format: json
   output: console+file
+
+ppr:
+  alpha: 0.85
+  max_iter: 100
+  top_k: 5
+  tol: 1.0e-6
+  max_chain_hops: 4
+  fallback_count: 3

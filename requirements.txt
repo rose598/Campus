@@ -4,6 +4,7 @@ langchain>=0.1.0
 langchain-core>=0.1.0
 openai>=1.6
 networkx>=3.1
+scipy>=1.10
 pyvis>=0.3.1
 sentence-transformers>=2.2
 rank-bm25>=0.2.2
