@@ -6,6 +6,8 @@ Day 25: 隐私控制面板完整实现（模式切换 + 数据透明度 + 数据
 
 import streamlit as st
 
+from global_styles import bootstrap_page
+
 from state_sync import (
     get_state,
     set_state,
@@ -283,6 +285,7 @@ def render_system_info():
 
 def main():
     """系统设置页主入口"""
+    bootstrap_page()
     render_header()
     render_config_section()
     render_feature_flags()

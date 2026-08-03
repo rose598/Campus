@@ -6,6 +6,8 @@ Day 15: 完整 UI — 课程列表 + 资料上传 + 总结卡片
 
 import streamlit as st
 
+from global_styles import bootstrap_page
+
 from state_sync import get_state, set_state
 from components.loading_states import (
     render_empty,
@@ -470,6 +472,7 @@ def render_course_detail(course: dict):
 
 def main():
     """课程资料页主入口"""
+    bootstrap_page()
     render_header()
 
     # ── 错误态检测 ──

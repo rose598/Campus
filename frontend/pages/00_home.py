@@ -6,6 +6,8 @@ Day 20: 集成三功能入口 + 个人统计 + 快捷操作
 
 import streamlit as st
 
+from global_styles import bootstrap_page
+
 from state_sync import get_state, set_state, get_user_profile, is_onboarding_completed
 from components.error_handler import render_error_page
 
@@ -264,6 +266,7 @@ def render_onboarding_hint():
 
 def main():
     """首页主入口"""
+    bootstrap_page()
     # ── 错误态检测 ──
     error_msg = get_state(HOME_ERROR_KEY)
     if error_msg:

@@ -9,6 +9,8 @@ from typing import Optional
 
 import streamlit as st
 
+from global_styles import bootstrap_page
+
 from state_sync import get_state, set_state, add_chat_message
 from components.chat_ui import (
     render_chat_history,
@@ -383,6 +385,7 @@ def handle_question(question: str) -> None:
 
 def main():
     """校园知识问答页主入口"""
+    bootstrap_page()
     render_header()
 
     # ── 错误态检测 ──

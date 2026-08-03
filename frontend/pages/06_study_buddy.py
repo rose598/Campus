@@ -6,6 +6,8 @@ Day 19: 对已入库课程资料进行 RAG 问答
 
 import streamlit as st
 
+from global_styles import bootstrap_page
+
 from state_sync import get_state, set_state, add_chat_message
 from components.chat_ui import (
     render_chat_history,
@@ -365,6 +367,7 @@ def render_stats(course_code: str):
 
 def main():
     """学伴对话页主入口"""
+    bootstrap_page()
     render_header()
 
     # ── 错误态检测 ──

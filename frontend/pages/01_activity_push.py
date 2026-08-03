@@ -6,6 +6,8 @@
 
 import streamlit as st
 
+from global_styles import bootstrap_page
+
 from state_sync import get_state, set_state
 from components.loading_states import render_empty, render_loading
 from components.error_handler import render_error_page
@@ -241,6 +243,7 @@ def render_user_profile_hint():
 
 def main():
     """活动推送页主入口"""
+    bootstrap_page()
     render_header()
 
     # ── 错误态检测 ──

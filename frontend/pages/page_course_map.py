@@ -9,6 +9,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from global_styles import bootstrap_page
+
 from state_sync import get_state, set_state
 
 
@@ -287,6 +289,7 @@ def render_onboarding_hint():
 # ── 主入口 ──────────────────────────────────────────────
 def main():
     """课程地图页主入口"""
+    bootstrap_page()
     # 加载数据
     courses = load_courses()
     graph = build_course_graph(courses)

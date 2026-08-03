@@ -5,6 +5,8 @@
 
 import streamlit as st
 
+from global_styles import bootstrap_page
+
 from state_sync import get_state, set_state, update_user_profile, mark_onboarding_completed
 
 
@@ -237,6 +239,7 @@ def render_step_done():
 
 def main():
     """冷启动引导页主入口"""
+    bootstrap_page()
     st.markdown(
         """
         <div style="text-align: center; padding: 0.5rem 0;">
