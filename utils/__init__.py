@@ -12,9 +12,21 @@ except Exception:
     EmbeddingClient = None
     _embedding_available = False
 
-from .rate_limiter import RateLimiter
-from .tracer import Tracer
-from .error_codes import GraphCampusError, ErrorCode
+try:
+    from .rate_limiter import RateLimiter
+except Exception:
+    RateLimiter = None
+
+try:
+    from .tracer import Tracer
+except Exception:
+    Tracer = None
+
+try:
+    from .error_codes import GraphCampusError, ErrorCode
+except Exception:
+    GraphCampusError = None
+    ErrorCode = None
 
 __all__ = ["LLMClient", "EmbeddingClient", "RateLimiter", "Tracer", "GraphCampusError", "ErrorCode", "run_health_check"]
 

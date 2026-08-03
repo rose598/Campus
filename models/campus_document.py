@@ -3,7 +3,7 @@ from typing import Literal, Optional, List
 from datetime import date
 
 class CampusDocument(BaseModel):
-    doc_id: str = Field(..., pattern=r"^DOC_\d{8}$", description="文档唯一ID")
+    doc_id: str = Field(..., pattern=r"^DOC_[A-F0-9]{8}$", description="文档唯一ID")
     category: Literal["academic", "life", "course"] = Field(..., description="分类：教务/生活/课程")
     title: str = Field(..., min_length=1, max_length=200, description="文档标题")
     content: str = Field(..., min_length=1, description="原始文本内容")
@@ -14,8 +14,8 @@ class CampusDocument(BaseModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="质量置信度")
 
 class Chunk(BaseModel):
-    chunk_id: str = Field(..., pattern=r"^CHK_\d{6}$", description="分块唯一ID")
-    doc_id: str = Field(..., pattern=r"^DOC_\d{8}$", description="所属文档ID")
+    chunk_id: str = Field(..., pattern=r"^CHK_[A-F0-9]{6}$", description="分块唯一ID")
+    doc_id: str = Field(..., pattern=r"^DOC_[A-F0-9]{8}$", description="所属文档ID")
     content: str = Field(..., min_length=1, description="分块文本")
     parent_headings: List[str] = Field(default_factory=list, description="父级标题链")
     position: int = Field(..., ge=0, description="在原文档中的顺序位置")
