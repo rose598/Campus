@@ -348,14 +348,16 @@ def render_stats(course_code: str):
     )
 
     st.divider()
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
+    # 2×2 网格：移动端避免四行堆叠占用过多纵向空间
+    row1_cols = st.columns(2)
+    row2_cols = st.columns(2)
+    with row1_cols[0]:
         st.metric("当前课程", course["course_name"])
-    with col2:
+    with row1_cols[1]:
         st.metric("入库资料", f"{course['material_count']} 份")
-    with col3:
+    with row2_cols[0]:
         st.metric("累计提问", f"{qa_count} 次")
-    with col4:
+    with row2_cols[1]:
         st.metric("引用来源", f"{source_count} 条")
 
 

@@ -104,7 +104,7 @@ def render_course_card(
             background-color: white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         ">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
                 <div style="flex: 1;">
                     <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                         <span style="font-size: 1.05rem; font-weight: 600; color: #1e3a5f;">
@@ -124,7 +124,6 @@ def render_course_card(
                     text-align: right;
                     color: #666;
                     font-size: 0.85rem;
-                    white-space: nowrap;
                 ">
                     {material_icon} {material_text}
                 </div>

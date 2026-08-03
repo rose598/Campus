@@ -141,7 +141,7 @@ def render_feature_cards():
             # 卡片 HTML
             st.markdown(
                 f"""
-                <div style="
+                <div class="gc-card" style="
                     border: 2px solid {entry['color']};
                     border-radius: 12px;
                     padding: 1.2rem;
@@ -201,14 +201,16 @@ def render_stats_section():
     except Exception:
         buddy_count = 0
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
+    # 2×2 网格：移动端避免四行堆叠占用过多纵向空间
+    row1_cols = st.columns(2)
+    row2_cols = st.columns(2)
+    with row1_cols[0]:
         st.metric("推荐活动", "12 个", help="基于你的兴趣匹配")
-    with col2:
+    with row1_cols[1]:
         st.metric("知识问答", f"{qa_count} 次", help="累计提问次数")
-    with col3:
+    with row2_cols[0]:
         st.metric("入库课程", "5 门", help="已上传资料的课程")
-    with col4:
+    with row2_cols[1]:
         st.metric("学伴对话", f"{buddy_count} 次", help="课程资料问答次数")
 
 

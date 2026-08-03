@@ -171,14 +171,16 @@ def render_course_overview(courses: list[dict]):
     total_materials = sum(c.get("material_count", 0) for c in courses)
     total_credits = sum(c.get("credits", 0) for c in courses)
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
+    # 2×2 网格：移动端避免四行堆叠占用过多纵向空间
+    row1_cols = st.columns(2)
+    row2_cols = st.columns(2)
+    with row1_cols[0]:
         st.metric("课程总数", f"{total} 门")
-    with col2:
+    with row1_cols[1]:
         st.metric("总学分", f"{total_credits:.1f}")
-    with col3:
+    with row2_cols[0]:
         st.metric("资料总数", f"{total_materials} 份")
-    with col4:
+    with row2_cols[1]:
         st.metric("AI 总结", f"{with_summary}/{total} 门")
 
 

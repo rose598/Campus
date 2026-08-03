@@ -103,18 +103,20 @@ def render_system_info():
     st.divider()
     st.markdown("### 📊 系统信息")
 
-    col1, col2, col3, col4 = st.columns(4)
+    # 2×2 网格：移动端避免四行堆叠占用过多纵向空间
+    row1_cols = st.columns(2)
+    row2_cols = st.columns(2)
 
-    with col1:
+    with row1_cols[0]:
         st.metric("版本", "v1.0.0")
 
-    with col2:
+    with row1_cols[1]:
         st.metric("数据库", "SQLite WAL")
 
-    with col3:
+    with row2_cols[0]:
         st.metric("缓存条目", "0")
 
-    with col4:
+    with row2_cols[1]:
         st.metric("运行状态", "✅ 正常")
 
 

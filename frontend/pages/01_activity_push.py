@@ -141,7 +141,7 @@ def render_activity_card(activity: dict):
 
     st.markdown(
         f"""
-        <div style="
+        <div class="gc-card" style="
             border: 1px solid #e0e0e0;
             border-radius: 10px;
             padding: 1.2rem;
@@ -149,7 +149,7 @@ def render_activity_card(activity: dict):
             background-color: white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         ">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
                 <div style="flex: 1;">
                     <div style="font-size: 1.1rem; font-weight: 600; color: #1e3a5f;">
                         {type_icon} {activity['title']}
