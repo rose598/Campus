@@ -5,5 +5,10 @@ from .text_cleaner import TextCleaner
 from .chunker import LayoutChunker
 from .metadata_annotator import MetadataAnnotator
 from .index_builder import IndexBuilder
+from .course_processor import CourseProcessor, CourseChunker, KnowledgeExtractor
 
-__all__ = ["DocParser", "TextCleaner", "LayoutChunker", "MetadataAnnotator", "IndexBuilder"]
+__all__ = [
+    "DocParser", "TextCleaner", "LayoutChunker",
+    "MetadataAnnotator", "IndexBuilder",
+    "CourseProcessor", "CourseChunker", "KnowledgeExtractor",
+]

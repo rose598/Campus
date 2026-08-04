@@ -314,7 +314,7 @@ def main():
         if result["issues"]:
             print("问题:")
             for issue in result["issues"]:
-                print(f"  ⚠ {issue}")
+                print(f"  [!] {issue}")
         return
 
     importer = DataImporter(
@@ -331,6 +331,7 @@ def main():
         dirs = [
             ("data/raw/policies", "policy"),
             ("data/raw/activities", "activity"),
+            ("data/raw/life", "policy"),  # life guides also treated as policy-type
         ]
         for source_dir, dtype in dirs:
             path = Path(source_dir)
@@ -371,7 +372,7 @@ def main():
         print(f"有效: {result['valid']}")
         if result["issues"]:
             for issue in result["issues"]:
-                print(f"  ⚠ {issue}")
+                print(f"  [!] {issue}")
     else:
         print("没有导入任何数据")
 
