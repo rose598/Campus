@@ -96,7 +96,7 @@ def render_course_card(
 
     st.markdown(
         f"""
-        <div style="
+        <div class="gc-card" style="
             border: 1px solid #e0e0e0;
             border-radius: 10px;
             padding: 1rem 1.2rem;

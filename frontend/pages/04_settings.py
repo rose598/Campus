@@ -98,7 +98,7 @@ def render_header():
     """渲染页面头部"""
     st.markdown(
         """
-        <div style="text-align: center; padding: 1rem 0;">
+        <div style="text-align: center; padding: 0.5rem 0;">
             <h1>⚙️ 系统设置</h1>
             <p style="color: #666;">管理系统配置、隐私模式和功能开关</p>
         </div>
