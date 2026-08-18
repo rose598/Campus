@@ -47,26 +47,26 @@ class IntentResult(BaseModel):
 # ─────────────────────────────────────────────
 
 _POLICY_KEYWORDS = {
-    "保研": ["保研", "推免", "免试", "研究生", "免推"],
+    "保研": ["保研", "推免", "免试", "免推"],
     "转专业": ["转专业", "换专业", "专业调剂", "专业分流"],
-    "选课": ["选课", "退课", "补选", "选课程", "课程号"],
+    "选课": ["选课", "退课", "补选"],
     "补考": ["补考", "重修", "挂科", "不及格"],
     "学籍": ["休学", "复学", "退学", "学籍", "在读证明"],
     "毕业": ["毕业", "学位", "毕业论文", "毕业设计", "答辩"],
-    "奖学金": ["奖学金", "助学金", "奖学", "国家奖学金", "励志奖学金"],
-    "四六级": ["四级", "六级", "CET", "英语考试"],
-    "学分": ["学分", "绩点", "GPA", "成绩"],
+    "奖学金": ["奖学金", "助学金", "国家奖学金", "励志奖学金"],
+    "四六级": ["四级", "六级", "CET", "英语考试", "四六级"],
+    "学分绩点": ["绩点", "GPA", "学分绩点"],
     "交换": ["交换生", "交流", "留学", "出国"],
 }
 
 _LIFE_KEYWORDS = {
     "宿舍": ["宿舍", "住宿", "寝室", "舍管", "宿管"],
-    "餐饮": ["食堂", "吃饭", "餐饮", "外卖"],
-    "图书馆": ["图书馆", "借书", "阅览", "自习室"],
+    "餐饮": ["食堂", "吃饭", "餐饮", "外卖", "午餐", "晚餐"],
+    "图书馆": ["图书馆", "借书", "阅览", "自习室", "借阅读"],
     "医疗": ["校医院", "体检", "医保", "看病", "报销"],
-    "交通": ["校车", "公交", "地铁", "停车"],
-    "网络": ["校园网", "WiFi", "VPN", "邮箱", "门户"],
-    "一卡通": ["一卡通", "饭卡", "水卡", "充值"],
+    "交通": ["校车", "公交", "地铁", "停车", "班车"],
+    "网络": ["校园网", "WiFi", "VPN", "邮箱", "门户", "网络密码"],
+    "一卡通": ["一卡通", "饭卡", "水卡", "充值", "校园卡"],
     "社团": ["社团", "学生会", "社团活动", "志愿者"],
     "就业": ["就业", "实习", "招聘", "校招", "简历"],
     "心理咨询": ["心理", "咨询", "压力", "辅导"],
@@ -74,13 +74,13 @@ _LIFE_KEYWORDS = {
 
 _COURSE_KEYWORDS = {
     "大纲": ["课程大纲", "教学大纲", "syllabus", "培养方案"],
-    "资料": ["课件", "PPT", "讲义", "复习资料", "笔记"],
-    "考试": ["期末考试", "期中考试", "考试范围", "考点"],
-    "作业": ["作业", "实验报告", "课程设计", "大作业"],
-    "教师": ["老师", "教师", "授课", "答疑"],
-    "先修": ["先修", "前置课程", " prerequisite"],
+    "资料": ["课件", "PPT", "讲义", "复习资料", "笔记", "课件下载"],
+    "考试": ["期末考试", "期中考试", "考试范围", "考点", "考试重点"],
+    "作业": ["作业", "实验报告", "课程设计", "大作业", "课后练习"],
+    "教师": ["授课", "答疑", "老师布置"],
+    "先修": ["先修", "前置课程", "prerequisite"],
     "评分": ["评分标准", "考核方式", "成绩构成", "平时分"],
-    "学时": ["学时", "课时", "学分", "课程安排"],
+    "学时": ["学时", "课时", "课程安排"],
 }
 
 # 通用模式 → 分类映射
@@ -90,17 +90,20 @@ _INTENT_PATTERNS = {
         re.compile(r"(保研|推免|转专业|选课|补考|毕业|学位).*(条件|要求|规定|政策|流程|怎么办)", re.I),
         re.compile(r"(什么|哪些|多少).*(条件|要求|名额|比例)", re.I),
         re.compile(r"(通知|规定|办法|条例|细则|管理办法)", re.I),
+        re.compile(r"(什么时候|几月|截止|申请时间|报名)", re.I),
     ],
     "life": [
         re.compile(r"(怎么|如何|哪里).*(办|申请|预约|借|报修)", re.I),
         re.compile(r"(宿舍|食堂|图书馆|校医院|校车|校园网|一卡通)", re.I),
-        re.compile(r"(时间|几点|开门|关门|营业)", re.I),
+        re.compile(r"(时间|几点|开门|关门|营业|开放时间)", re.I),
+        re.compile(r"(可以|能|能否|允许).*(吗|么)", re.I),
     ],
     "course": [
         re.compile(r"(课程|这门课|这门).*(大纲|重点|考点|资料|课件)", re.I),
         re.compile(r"(复习|备考|期末|期中).*(怎么|如何|重点|范围)", re.I),
         re.compile(r"(作业|实验|报告).*(要求|格式|截止|deadline)", re.I),
         re.compile(r"(先修|前置|prerequisite)", re.I),
+        re.compile(r"(哪|那|这).*(门|节|堂).*(课|讲)", re.I),
     ],
 }
 
@@ -190,24 +193,35 @@ class IntentClassifier:
     def _rule_classify(self, query: str, context: Optional[str] = None) -> IntentResult:
         """
         基于关键词和模式的规则分类。
+
+        优化策略:
+          - 关键词精确匹配（避免子串误匹配）
+          - 模式匹配加权
+          - 多关键词叠加提升置信度
         """
         text = f"{query} {context or ''}".lower()
         scores = {"policy": 0, "life": 0, "course": 0}
         matched_keywords = {"policy": [], "life": [], "course": []}
 
-        # 1. 关键词匹配
+        # 1. 关键词匹配（精确匹配，避免子串误匹配）
         for intent, keyword_groups in _SUB_INTENT_MAP.items():
             for sub_intent, keywords in keyword_groups.items():
                 for kw in keywords:
+                    # 精确匹配：关键词前后必须是边界或已包含
                     if kw.lower() in text:
+                        # 避免重复计数
+                        if sub_intent not in matched_keywords[intent]:
+                            matched_keywords[intent].append(sub_intent)
                         scores[intent] += 2
-                        matched_keywords[intent].append(sub_intent)
 
         # 2. 模式匹配（加权）
         for intent, patterns in _INTENT_PATTERNS.items():
+            pattern_hits = 0
             for pat in patterns:
                 if pat.search(text):
-                    scores[intent] += 3
+                    pattern_hits += 1
+            # 模式命中越多，加权越高（避免单一模式误判）
+            scores[intent] += pattern_hits * 2
 
         # 3. 选出最佳分类
         max_score = max(scores.values())
@@ -216,7 +230,10 @@ class IntentClassifier:
 
         best_intent = max(scores, key=scores.get)
         total = sum(scores.values())
-        confidence = min(scores[best_intent] / max(total, 1) + 0.1, 1.0)
+
+        # 置信度计算：best_score / total + 命中关键词数加成
+        keyword_bonus = min(len(matched_keywords.get(best_intent, [])) * 0.05, 0.2)
+        confidence = min(scores[best_intent] / max(total, 1) + keyword_bonus, 1.0)
 
         # 子意图（去重）
         sub_intents = list(set(matched_keywords.get(best_intent, [])))
@@ -286,23 +303,26 @@ if __name__ == "__main__":
     classifier = IntentClassifier(use_llm=False)
 
     test_queries = [
-        "保研需要什么条件？",
-        "转专业的流程是怎样的？",
-        "选课系统什么时候开放？",
-        "图书馆几点关门？",
-        "宿舍可以申请换房吗？",
-        "这门课的期末考试范围是什么？",
-        "有没有高数课件？",
-        "奖学金怎么申请？",
-        "四六级什么时候报名？",
-        "校园网密码忘了怎么办？",
-        "今天天气怎么样？",
+        ("保研需要什么条件？", "policy"),
+        ("转专业的流程是怎样的？", "policy"),
+        ("选课系统什么时候开放？", "policy"),
+        ("图书馆几点关门？", "life"),
+        ("宿舍可以申请换房吗？", "life"),
+        ("这门课的期末考试范围是什么？", "course"),
+        ("有没有高数课件？", "course"),
+        ("奖学金怎么申请？", "policy"),
+        ("四六级什么时候报名？", "policy"),
+        ("校园网密码忘了怎么办？", "life"),
+        ("今天天气怎么样？", "general"),
     ]
 
-    print("=== 意图分类测试 ===\n")
-    for q in test_queries:
+    print("=== 意图分类测试 ===")
+    correct = 0
+    for q, expected in test_queries:
         result = classifier.classify(q)
-        print(f"  Q: {q}")
-        print(f"  → intent={result.intent} | sub={result.sub_intent} | "
-              f"conf={result.confidence} | method={result.method}")
-        print()
+        status = "OK" if result.intent == expected else "FAIL"
+        if result.intent == expected:
+            correct += 1
+        print(f"  [{status}] Q: {q}")
+        print(f"       → {result.intent} (expected={expected}) | sub={result.sub_intent} | conf={result.confidence}")
+    print(f"\n准确率: {correct}/{len(test_queries)} ({correct/len(test_queries)*100:.1f}%)")

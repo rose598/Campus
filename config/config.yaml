@@ -36,6 +36,14 @@ features:
   offline_mode: false
   strict_privacy: false
 
+privacy:
+  mode: standard            # standard / offline / anonymized
+  anonymize_names: true
+  anonymize_phones: true
+  anonymize_emails: true
+  anonymize_student_ids: true
+  llm_fallback_enabled: true
+
 campus_qa:
   time_decay_lambda: 0.01
   default_expiry_days: 365

@@ -28,7 +28,21 @@ except Exception:
     GraphCampusError = None
     ErrorCode = None
 
-__all__ = ["LLMClient", "EmbeddingClient", "RateLimiter", "Tracer", "GraphCampusError", "ErrorCode", "run_health_check"]
+try:
+    from .privacy import PrivacyManager, PrivacyMode, DataAnonymizer, privacy_mode, require_online
+except Exception:
+    PrivacyManager = None
+    PrivacyMode = None
+    DataAnonymizer = None
+    privacy_mode = None
+    require_online = None
+
+__all__ = [
+    "LLMClient", "EmbeddingClient", "RateLimiter", "Tracer",
+    "GraphCampusError", "ErrorCode", "run_health_check",
+    "PrivacyManager", "PrivacyMode", "DataAnonymizer",
+    "privacy_mode", "require_online",
+]
 
 _llm_client_instance = None
 _rate_limiter_instance = None

@@ -332,6 +332,7 @@ def main():
             ("data/raw/policies", "policy"),
             ("data/raw/activities", "activity"),
             ("data/raw/life", "policy"),  # life guides also treated as policy-type
+            ("data/raw/supplementary", "policy"),  # supplementary notices
         ]
         for source_dir, dtype in dirs:
             path = Path(source_dir)

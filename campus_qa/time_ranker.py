@@ -98,6 +98,11 @@ class TimeRanker:
       - λ: 衰减系数（默认 0.01，即 100 天后权重约为 37%）
       - days_ago: 文档发布距今天数
 
+    分类别衰减系数:
+      - academic/policy: λ=0.02（政策文件时效性强）
+      - life: λ=0.005（生活指南相对稳定）
+      - course: λ=0.01（课程资料中等时效）
+
     过期过滤:
       - 如果文档有 expiry_date 且已过期，默认过滤掉
       - 可通过 include_expired=True 保留但标记
@@ -109,24 +114,35 @@ class TimeRanker:
         '2026年保研推免通知'
     """
 
+    # 分类别衰减系数（不同类别时效性不同）
+    CATEGORY_LAMBDA = {
+        "academic": 0.02,   # 政策文件时效性强
+        "policy": 0.02,
+        "life": 0.005,      # 生活指南相对稳定
+        "course": 0.01,     # 课程资料中等时效
+    }
+
     def __init__(
         self,
         decay_lambda: float = 0.01,
         default_expiry_days: int = 365,
         filter_expired: bool = True,
         min_time_weight: float = 0.1,
+        use_category_lambda: bool = True,
     ):
         """
         Args:
-            decay_lambda: 时间衰减系数（越大衰减越快）
-            default_expiry_days: 默认有效期天数（文档无 expiry_date 时使用）
+            decay_lambda: 全局时间衰减系数（越大衰减越快）
+            default_expiry_days: 默认有效期天数
             filter_expired: 是否过滤已过期文档
-            min_time_weight: 最小时间权重下限（防止旧文档权重过低）
+            min_time_weight: 最小时间权重下限
+            use_category_lambda: 是否启用分类别衰减系数
         """
         self._lambda = decay_lambda
         self._default_expiry_days = default_expiry_days
         self._filter_expired = filter_expired
         self._min_weight = min_time_weight
+        self._use_category_lambda = use_category_lambda
 
     @classmethod
     def from_config(cls) -> "TimeRanker":
@@ -191,8 +207,9 @@ class TimeRanker:
                 expired_count += 1
                 continue
 
-            # 计算时间权重
-            time_weight = self._compute_time_weight(days_ago)
+            # 计算时间权重（传入分类）
+            category = cand.get("category", "")
+            time_weight = self._compute_time_weight(days_ago, category)
 
             # 原始检索分数
             retrieval_score = float(
@@ -263,14 +280,17 @@ class TimeRanker:
 
     # ── 时间权重计算 ──────────────────────────
 
-    def _compute_time_weight(self, days_ago: Optional[int]) -> float:
+    def _compute_time_weight(self, days_ago: Optional[int], category: str = "") -> float:
         """
         计算时间权重（指数衰减）。
 
         weight = max(min_weight, exp(-λ × days_ago))
 
+        支持分类别衰减系数：不同类别的时效性不同，使用不同的 λ。
+
         Args:
             days_ago: 距今天数（None 表示未知日期）
+            category: 文档分类
 
         Returns:
             时间权重 [min_weight, 1.0]
@@ -279,15 +299,75 @@ class TimeRanker:
             # 无日期信息，给予中等权重
             return 0.5
 
-        weight = math.exp(-self._lambda * days_ago)
+        # 选择衰减系数
+        lam = self._lambda
+        if self._use_category_lambda and category in self.CATEGORY_LAMBDA:
+            lam = self.CATEGORY_LAMBDA[category]
+
+        weight = math.exp(-lam * days_ago)
         return max(self._min_weight, weight)
 
     # ── 配置调整 ──────────────────────────────
 
     def set_decay_lambda(self, new_lambda: float) -> None:
-        """动态调整衰减系数"""
+        """动态调整全局衰减系数"""
         self._lambda = new_lambda
-        logger.info("[TimeRanker] 衰减系数更新: λ = %f", new_lambda)
+        logger.info("[TimeRanker] 全局衰减系数更新: λ = %f", new_lambda)
+
+    def set_category_lambda(self, category: str, new_lambda: float) -> None:
+        """设置特定分类的衰减系数"""
+        self.CATEGORY_LAMBDA[category] = new_lambda
+        logger.info("[TimeRanker] 分类 '%s' 衰减系数更新: λ = %f", category, new_lambda)
+
+    def auto_tune_lambda(
+        self,
+        candidates: List[Dict],
+        target_weight_at_90_days: float = 0.4,
+    ) -> float:
+        """
+        根据数据分布自动调优 λ。
+
+        策略：
+          - 分析候选文档的日期分布
+          - 目标是 90 天后的文档权重约为 target_weight
+          - λ = -ln(target_weight) / 90
+
+        Args:
+            candidates: 候选文档列表
+            target_weight_at_90_days: 90天后的目标权重
+
+        Returns:
+            推荐的 λ 值
+        """
+        import math
+
+        # 计算最优 λ
+        recommended_lambda = -math.log(target_weight_at_90_days) / 90
+
+        # 分析数据分布
+        dates = []
+        for cand in candidates:
+            pub_date = _parse_date(cand.get("publish_date"))
+            if pub_date:
+                dates.append(pub_date)
+
+        if dates:
+            today = date.today()
+            ages = [(today - d).days for d in dates if d <= today]
+            if ages:
+                avg_age = sum(ages) / len(ages)
+                # 如果平均年龄较大，适当增大 λ
+                if avg_age > 180:
+                    recommended_lambda *= 1.2
+                elif avg_age < 60:
+                    recommended_lambda *= 0.8
+
+        self._lambda = round(recommended_lambda, 4)
+        logger.info(
+            "[TimeRanker] 自动调优: λ = %.4f (目标: 90天后权重=%.2f)",
+            self._lambda, target_weight_at_90_days,
+        )
+        return self._lambda
 
     def get_decay_profile(self, max_days: int = 365, step: int = 30) -> Dict[int, float]:
         """
