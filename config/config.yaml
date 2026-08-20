@@ -9,6 +9,7 @@ llm:
   temperature: 0.3
   max_retries: 3
   backoff_base: 1.0
+  timeout_seconds: 15
   circuit_breaker_threshold: 5
   circuit_breaker_reset_seconds: 30
   concurrency_limit: 3
@@ -27,12 +28,18 @@ rag:
   final_top_k: 3
   chunk_size: 512
   chunk_overlap: 50
+  query_rewrite_history_rounds: 4
+  # Day 24 调优参数
+  bm25_weight: 1.2                # BM25 路权重（当前 Dense 依赖 sentence-transformers，未装时 BM25 为主力）
+  dense_weight: 1.0               # Dense 路权重
+  min_rrf_score: 0.015            # RRF 相关性下限，低于此分的结果不返回
 
 features:
   activity_push: true
   campus_qa: true
   course_summary: true
   semantic_cache: true
+  query_rewriting: true
   offline_mode: false
   strict_privacy: false
 
@@ -69,3 +76,8 @@ ppr:
   tol: 1.0e-6
   max_chain_hops: 4
   fallback_count: 3
+  # Day 23 调优参数
+  course_weight: 1.2              # 课程信号权重（相对兴趣 1.0）
+  freshness_weight: 0.3           # 时效提权上限（近期活动最多 +30%）
+  freshness_halflife_days: 60     # 时效提权半衰期（天）
+  diversity_penalty: 0.25         # 同类型活动重复惩罚系数

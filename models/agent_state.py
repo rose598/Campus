@@ -25,7 +25,8 @@ class AgentState(TypedDict, total=False):
     campus_docs: Dict[str, List[CampusDocument]]   # 校园文档分类（按类别）
     campus_indexes: Dict[str, Any]            # 分类索引 {教务/生活/课程}
     intent: Optional[str]                     # 意图分类结果
-    privacy_mode: bool                        # 隐私模式
+    rewritten_query: Optional[str]            # 多轮对话改写后的查询
+    privacy_mode: bool                         # 隐私模式
     interrupt_flag: bool                      # 中断标志
     extraction_confidence: float              # 抽取结果置信度
     trace_id: str                             # 链路追踪 ID

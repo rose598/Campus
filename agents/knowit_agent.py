@@ -1,5 +1,5 @@
 """
-百事通子图 —— 学校知识问答（意图分类 + 分类路由 + Hybrid RAG 检索 + LLM 生成）
+百事通子图 —— 学校知识问答（查询改写 + 意图分类 + 分类路由 + Hybrid RAG 检索 + LLM 生成）
 """
 from typing import Dict, Any, Optional
 
@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from models.agent_state import AgentState
 
 from rag.hybrid_retriever import hybrid_search
+from rag.query_rewriter import QueryRewriter, history_from_messages
 from utils.config_loader import get
 from utils import get_llm_client
 
@@ -39,16 +40,46 @@ INTENT_TO_CATEGORY = {
 }
 
 
-def classify_intent(state: AgentState, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
-    """意图分类节点：对用户最新问题分类
+def rewrite_query(state: AgentState, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
+    """查询改写节点：结合对话历史将最新问题改写为自包含的独立查询
 
-    优先使用 router 已设定的 intent（规则路由），
-    仅当 intent 为 "all" 或未设置时才调用 LLM 精分类。
+    LLM 不可用或无历史时透传原始查询，不阻断主流程。
+    """
+    messages = state.get("messages", [])
+    query = ""
+    for msg in reversed(messages):
+        if getattr(msg, "type", "") == "human":
+            query = getattr(msg, "content", "") or ""
+            break
+
+    if not query.strip():
+        return {"rewritten_query": query}
+
+    history = history_from_messages(messages)
+    rewriter = QueryRewriter()
+    result = rewriter.rewrite(
+        query,
+        chat_history=history,
+        user_id=state.get("user_id", "default"),
+    )
+
+    return {"rewritten_query": result["rewritten"]}
+
+
+def classify_intent(state: AgentState, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
+    """意图分类节点：对用户最新问题做 QA 细分类（policy/life/course/general）
+
+    注意：父图 router 产出的是功能路由（activity_push/campus_qa/
+    course_summary/all），与本节点的 QA 分类是两个命名空间。
+    仅当 router 未给出有效功能路由（"all" 或空）时才调用 LLM 精分类，
+    避免覆盖父图路由结果导致聚合器降级。
+    分类基于改写后的查询（如有），提升多轮场景下的准确率。
     """
     router_intent = state.get("intent", "all")
 
     if router_intent and router_intent != "all":
-        return {"intent": router_intent}
+        # 父图路由已确定功能方向，保留不覆盖
+        return {}
 
     messages = state.get("messages", [])
     if not messages:
@@ -60,6 +91,9 @@ def classify_intent(state: AgentState, config: Optional[RunnableConfig] = None) 
         if role == "human":
             last_user_msg = getattr(msg, "content", "") or ""
             break
+
+    # 意图分类优先使用改写后的查询（自包含，分类更准）
+    last_user_msg = state.get("rewritten_query") or last_user_msg
 
     if not last_user_msg.strip():
         return {"intent": "general"}
@@ -81,7 +115,10 @@ def classify_intent(state: AgentState, config: Optional[RunnableConfig] = None) 
 
 
 def retrieve_knowit(state: AgentState, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
-    """检索节点：Hybrid RAG 检索（BM25 + Dense + RRF 融合，支持按类别过滤）"""
+    """检索节点：Hybrid RAG 检索（BM25 + Dense + RRF 融合，支持按类别过滤）
+
+    优先使用改写后的查询检索，提升多轮对话召回率。
+    """
     intent = state.get("intent", "general")
 
     messages = state.get("messages", [])
@@ -90,6 +127,9 @@ def retrieve_knowit(state: AgentState, config: Optional[RunnableConfig] = None) 
         if getattr(msg, "type", "") == "human":
             query = getattr(msg, "content", "") or ""
             break
+
+    # 优先使用改写后的自包含查询
+    query = state.get("rewritten_query") or query
 
     if not query:
         return {"retrieved_docs": []}
@@ -113,6 +153,9 @@ def generate_knowit(state: AgentState, config: Optional[RunnableConfig] = None) 
         if getattr(msg, "type", "") == "human":
             query = getattr(msg, "content", "") or ""
             break
+
+    # 生成时使用改写后的查询（检索与生成的语义对齐）
+    query = state.get("rewritten_query") or query
 
     retrieved = state.get("retrieved_docs", []) or []
     if not retrieved:

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 import networkx as nx
@@ -25,6 +26,11 @@ class PprRecommender:
         self._tol = float(get("ppr.tol", 1e-6))
         self._max_hops = int(get("ppr.max_chain_hops", 4))
         self._fallback_count = int(get("ppr.fallback_count", 3))
+        # Day 23 调优参数
+        self._course_weight = float(get("ppr.course_weight", 1.2))
+        self._freshness_weight = float(get("ppr.freshness_weight", 0.3))
+        self._freshness_halflife_days = float(get("ppr.freshness_halflife_days", 60))
+        self._diversity_penalty = float(get("ppr.diversity_penalty", 0.25))
 
     # ── public API ─────────────────────────────────────────────────────
 
@@ -82,7 +88,8 @@ class PprRecommender:
         for code in user_courses:
             course_nid = f"course:{code}"
             if course_nid in self._graph:
-                pvec[course_nid] = pvec.get(course_nid, 0) + 1.0
+                # 课程信号权重略高于兴趣（课程与活动的关联更确定）
+                pvec[course_nid] = pvec.get(course_nid, 0) + self._course_weight
                 if course_nid not in source_nodes:
                     source_nodes.append(course_nid)
 
@@ -94,10 +101,16 @@ class PprRecommender:
     # ── PPR run ────────────────────────────────────────────────────────
 
     def _run_ppr(self, personalization: dict) -> dict:
+        # networkx ≥ 3.3 要求 personalization 向量求和为 1，先归一化
+        total = sum(personalization.values())
+        if total <= 0:
+            raise ValueError("personalization 向量总和非正")
+        normalized = {nid: w / total for nid, w in personalization.items()}
+
         return nx.pagerank(
             self._undirected,
             alpha=self._alpha,
-            personalization=personalization,
+            personalization=normalized,
             max_iter=self._max_iter,
             tol=self._tol,
         )
@@ -107,25 +120,73 @@ class PprRecommender:
     def _extract_event_recommendations(
         self, scores: dict, top_k: int
     ) -> List[Recommendation]:
+        # 初筛：所有 event 节点的 PPR 原始分
         event_scores = []
         for nid, score in scores.items():
             if self._graph.nodes[nid].get("node_type") != "event":
                 continue
-            event_scores.append((nid, score))
+            event_scores.append((nid, float(score)))
 
+        if not event_scores:
+            return []
+
+        # Day 23 调优 1: 时效加权 —— 近期活动按半衰期提权
+        event_scores = [
+            (nid, s * (1.0 + self._freshness_boost(nid)))
+            for nid, s in event_scores
+        ]
+
+        # Day 23 调优 2: 类型多样性惩罚 —— 贪心选择，同类型已选越多惩罚越重
         event_scores.sort(key=lambda x: x[1], reverse=True)
-        event_scores = event_scores[:top_k]
+        selected: List[tuple] = []
+        type_counts: Dict[str, int] = {}
+        candidates = list(event_scores)
+        while candidates and len(selected) < top_k:
+            best_idx, best_val = 0, float("-inf")
+            for i, (nid, s) in enumerate(candidates):
+                etype = self._graph.nodes[nid].get("event_type", "")
+                penalty = self._diversity_penalty * type_counts.get(etype, 0)
+                val = s * (1.0 - penalty)
+                if val > best_val:
+                    best_val, best_idx = val, i
+            nid, s = candidates.pop(best_idx)
+            selected.append((nid, max(s, 0.0)))
+            etype = self._graph.nodes[nid].get("event_type", "")
+            type_counts[etype] = type_counts.get(etype, 0) + 1
 
+        # Day 23 调优 3: 分数归一化 —— Top1 归一到 1.0，保持可比性
+        max_score = max((s for _, s in selected), default=0.0)
         results = []
-        for nid, score in event_scores:
+        for nid, score in selected:
             nd = self._graph.nodes[nid]
+            normalized = (score / max_score) if max_score > 0 else 0.0
             results.append(Recommendation(
                 event_id=nid,
                 event_title=nd.get("name", ""),
                 event_type=nd.get("event_type", ""),
-                score=round(float(score), 6),
+                score=round(min(normalized, 1.0), 6),
             ))
         return results
+
+    def _freshness_boost(self, event_nid: str) -> float:
+        """时效提权因子：活动日期越近提权越高（半衰期衰减，无日期不提权）"""
+        if self._freshness_weight <= 0:
+            return 0.0
+        date_str = self._graph.nodes[event_nid].get("event_date", "")
+        if not date_str:
+            return 0.0
+        try:
+            ev_dt = datetime.fromisoformat(date_str)
+            if ev_dt.tzinfo is not None:
+                ev_dt = ev_dt.astimezone(timezone.utc).replace(tzinfo=None)
+        except (ValueError, TypeError):
+            return 0.0
+        days = (ev_dt - datetime.now()).total_seconds() / 86400.0
+        if days < 0:  # 已过去的活动不提权
+            return 0.0
+        # 半衰期衰减：到达半衰期时提权减半
+        decay = 0.5 ** (days / self._freshness_halflife_days)
+        return self._freshness_weight * decay
 
     # ── reasoning chain ─────────────────────────────────────────────────
 

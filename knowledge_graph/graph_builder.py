@@ -84,7 +84,14 @@ def build_heterogeneous_graph(
     event_interest_keywords: set[str] = set()
     for ev in events:
         eid = _make_node_id("event", ev["title"])
-        G.add_node(eid, node_type="event", name=ev["title"], event_type=ev["event_type"])
+        # event_date 供推荐器做时效加权（Day 23）
+        G.add_node(
+            eid,
+            node_type="event",
+            name=ev["title"],
+            event_type=ev["event_type"],
+            event_date=ev.get("date", ""),
+        )
         for tag in ev.get("tags", []):
             event_interest_keywords.add(tag)
 

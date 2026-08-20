@@ -13,7 +13,7 @@ from langchain_core.runnables import RunnableConfig
 
 from models.agent_state import AgentState
 from agents.intel_agent import run_intel_node
-from agents.knowit_agent import classify_intent, retrieve_knowit, generate_knowit
+from agents.knowit_agent import rewrite_query, classify_intent, retrieve_knowit, generate_knowit
 from agents.buddy_agent import run_buddy_node
 from utils import get_tracer
 
@@ -74,11 +74,25 @@ def _rule_based_route(query: str) -> str:
 
 
 def node_intel(state: AgentState, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
-    """情报官包装节点（含计时日志）"""
+    """情报官包装节点（含计时日志）
+
+    异常隔离：子图内部失败时返回降级结果，不阻断 Fan-out 其他分支。
+    """
     tracer = _ensure_tracer(state, "intel_agent")
     start = time.time()
 
-    result = run_intel_node(state)
+    try:
+        result = run_intel_node(state)
+    except Exception as e:  # noqa: BLE001 子图故障不冒泡
+        tracer.error(f"intel failed: {e}", node="intel_agent")
+        return {
+            "intel_result": {
+                "trace_id": state.get("trace_id", "unknown"),
+                "recommendations": [],
+                "status": "error",
+                "error": str(e)[:200],
+            }
+        }
 
     latency_ms = int((time.time() - start) * 1000)
     recs = (result.get("intel_result", {}) or {}).get("recommendations", [])
@@ -88,15 +102,43 @@ def node_intel(state: AgentState, config: Optional[RunnableConfig] = None) -> Di
 
 
 def node_knowit(state: AgentState, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
-    """百事通全流程包装节点（分类 → 检索 → 生成）"""
+    """百事通全流程包装节点（查询改写 → 分类 → 检索 → 生成）
+
+    异常隔离：任一环节异常时返回降级 qa_result，不阻断其他子图。
+    """
     tracer = _ensure_tracer(state, "knowit_agent")
     start = time.time()
 
+    try:
+        return _run_knowit_pipeline(state, tracer, start)
+    except Exception as e:  # noqa: BLE001 子图故障不冒泡
+        tracer.error(f"knowit failed: {e}", node="knowit_agent")
+        return {
+            "qa_result": {
+                "trace_id": state.get("trace_id", "unknown"),
+                "answer": "校园问答服务暂时不可用，请稍后重试。",
+                "sources": [],
+                "status": "error",
+                "error": str(e)[:200],
+            }
+        }
+
+
+def _run_knowit_pipeline(state: AgentState, tracer, start: float) -> Dict[str, Any]:
+    """百事通内部流水线（改写 → 分类 → 检索 → 生成）"""
     state_updates: Dict[str, Any] = {}
+
+    # Step 0: 多轮对话查询改写（Day 11）
+    with tracer.node("query_rewriter") as ctx:
+        rewrite_result = rewrite_query(state)
+        state_updates.update(rewrite_result)
+        ctx.add("rewritten_query", rewrite_result.get("rewritten_query", "")[:100])
+
+    merged_state = {**state, **state_updates}
 
     # Step 1: 意图分类
     with tracer.node("intent_classifier") as ctx:
-        intent_result = classify_intent(state)
+        intent_result = classify_intent(merged_state)
         state_updates.update(intent_result)
         ctx.add("intent", intent_result.get("intent"))
 
@@ -124,11 +166,23 @@ def node_knowit(state: AgentState, config: Optional[RunnableConfig] = None) -> D
 
 
 def node_buddy(state: AgentState, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
-    """学伴包装节点"""
+    """学伴包装节点（异常隔离：失败返回降级结果）"""
     tracer = _ensure_tracer(state, "buddy_agent")
     start = time.time()
 
-    result = run_buddy_node(state)
+    try:
+        result = run_buddy_node(state)
+    except Exception as e:  # noqa: BLE001 子图故障不冒泡
+        tracer.error(f"buddy failed: {e}", node="buddy_agent")
+        return {
+            "buddy_result": {
+                "trace_id": state.get("trace_id", "unknown"),
+                "courses_available": [],
+                "summary": "课程资料服务暂时不可用，请稍后重试。",
+                "status": "error",
+                "error": str(e)[:200],
+            }
+        }
 
     latency_ms = int((time.time() - start) * 1000)
     tracer.info("buddy completed", node="buddy_agent", latency_ms=latency_ms)
@@ -150,14 +204,20 @@ def node_aggregator(state: AgentState, config: Optional[RunnableConfig] = None) 
         "buddy": buddy,
     }
 
+    # intent 字段被两个命名空间共用：父图功能路由（activity_push/
+    # campus_qa/course_summary/all）与百事通 QA 分类（policy/life/
+    # course/general）。展示时非功能路由一律按 "all" 处理。
+    intent = state.get("intent", "all")
+    display_intent = intent if intent in ("activity_push", "campus_qa", "course_summary") else "all"
+
     # 构造最终回复文本
-    final_response = _build_final_response(aggregated, state.get("intent", "all"))
+    final_response = _build_final_response(aggregated, display_intent)
 
     tracer.info(
         "aggregated results",
         node="aggregator",
         detail={
-            "intent": state.get("intent"),
+            "intent": intent,
             "intel_recs": len(intel.get("recommendations", [])),
             "knowit_answer_len": len(knowit.get("answer", "") or ""),
             "buddy_status": buddy.get("status"),
@@ -205,6 +265,7 @@ def _build_final_response(aggregated: dict, intent: str) -> str:
     if intent in ("course_summary", "all"):
         buddy_data = aggregated.get("buddy", {})
         status = buddy_data.get("status", "")
+        summary = buddy_data.get("summary", "")
         if status == "placeholder":
             courses = buddy_data.get("courses_available", [])
             if courses:
@@ -212,6 +273,11 @@ def _build_final_response(aggregated: dict, intent: str) -> str:
                     "**📚 学伴 · 课程资料**\n"
                     + f"正在开发中，已收录 {len(courses)} 门课程。"
                 )
+            elif summary:
+                parts.append(f"**📚 学伴 · 课程资料**\n{summary}")
+        elif summary:
+            lines = ["**📚 学伴 · 课程总结**", summary]
+            parts.append("\n".join(lines))
 
     if not parts:
         return "暂无可用信息，请明确您的需求：活动推荐 / 政策问答 / 课程资料。"

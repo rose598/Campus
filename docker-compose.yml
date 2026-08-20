@@ -1,0 +1,18 @@
+services:
+  graphcampus:
+    build: .
+    image: graphcampus:latest
+    container_name: graphcampus
+    ports:
+      - "8501:8501"
+    volumes:
+      # SQLite 与日志持久化（首次启动需在容器内或宿主机执行种子导入）
+      - graphcampus-data:/app/data
+    environment:
+      # 配置中心支持环境变量覆盖（见 config/config_loader.py）
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+    restart: unless-stopped
+
+volumes:
+  graphcampus-data:

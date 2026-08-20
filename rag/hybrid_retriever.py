@@ -11,6 +11,9 @@ def rrf_merge(
 ) -> List[Dict[str, Any]]:
     """RRF (Reciprocal Rank Fusion) —— 融合 BM25 和 Dense 检索结果
 
+    Day 24 调优：支持双路权重（rag.bm25_weight / rag.dense_weight）与
+    相关性下限（rag.min_rrf_score，低于阈值的结果不返回）。
+
     Args:
         bm25_results: BM25 检索结果列表，每项含 chunk_id/score/content 等
         dense_results: Dense 检索结果列表，格式同上
@@ -22,22 +25,27 @@ def rrf_merge(
     """
     rrf_k = k or int(get("rag.rrf_k", 60))
     top_k = final_top_k or int(get("rag.final_top_k", 3))
+    bm25_weight = float(get("rag.bm25_weight", 1.0))
+    dense_weight = float(get("rag.dense_weight", 1.0))
+    min_score = float(get("rag.min_rrf_score", 0.0))
 
     scores: Dict[str, float] = {}
     result_map: Dict[str, Dict[str, Any]] = {}
 
     for rank, item in enumerate(bm25_results):
         cid = item.get("chunk_id", "")
-        scores[cid] = scores.get(cid, 0.0) + 1.0 / (rrf_k + rank + 1)
+        scores[cid] = scores.get(cid, 0.0) + bm25_weight / (rrf_k + rank + 1)
         result_map[cid] = item
 
     for rank, item in enumerate(dense_results):
         cid = item.get("chunk_id", "")
-        scores[cid] = scores.get(cid, 0.0) + 1.0 / (rrf_k + rank + 1)
+        scores[cid] = scores.get(cid, 0.0) + dense_weight / (rrf_k + rank + 1)
         if cid not in result_map:
             result_map[cid] = item
 
     ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    # 相关性下限：过滤低于阈值的结果（宁缺毋滥，避免垃圾答案）
+    ranked = [(cid, s) for cid, s in ranked if s >= min_score]
     top = ranked[:top_k]
 
     results = []

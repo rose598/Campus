@@ -1,82 +1,9 @@
 import time
 import threading
-from typing import Optional, Any, Callable, List, Tuple
+from typing import Optional, Any, Callable
 from openai import OpenAI
 from .config_loader import get
 from .rate_limiter import RateLimiter as RL
-
-
-class SemanticCache:
-    """语义缓存 —— 余弦相似度匹配 + TTL 过期 + LRU 淘汰"""
-
-    def __init__(
-        self,
-        similarity_threshold: float = 0.92,
-        ttl_seconds: int = 3600,
-        max_size: int = 1000,
-    ):
-        self._threshold = similarity_threshold
-        self._ttl = ttl_seconds
-        self._max_size = max_size
-        # 存储: [(embedding, response, timestamp, last_access)]
-        self._store: List[Tuple[List[float], str, float, float]] = []
-        self._lock = threading.Lock()
-
-    def query(self, embedding: List[float]) -> Optional[str]:
-        """查询缓存，返回相似度超过阈值的缓存结果，否则返回 None"""
-        import numpy as np
-
-        now = time.time()
-        best_score = -1.0
-        best_idx = -1
-
-        with self._lock:
-            # 清理过期条目
-            self._store = [
-                entry for entry in self._store
-                if now - entry[2] < self._ttl
-            ]
-
-            if not self._store:
-                return None
-
-            query_arr = np.array(embedding)
-            query_norm = np.linalg.norm(query_arr)
-            if query_norm == 0:
-                return None
-
-            for i, (cached_emb, _, _, _) in enumerate(self._store):
-                cached_arr = np.array(cached_emb)
-                cached_norm = np.linalg.norm(cached_arr)
-                if cached_norm == 0:
-                    continue
-                score = float(np.dot(query_arr, cached_arr) / (query_norm * cached_norm))
-                if score > best_score:
-                    best_score = score
-                    best_idx = i
-
-            if best_score >= self._threshold and best_idx >= 0:
-                # 更新 LRU 访问时间
-                entry = self._store[best_idx]
-                self._store[best_idx] = (entry[0], entry[1], entry[2], now)
-                return entry[1]
-
-        return None
-
-    def put(self, embedding: List[float], response: str) -> None:
-        """存入缓存"""
-        now = time.time()
-        with self._lock:
-            # LRU 淘汰：超过 max_size 时删除最久未访问的
-            if len(self._store) >= self._max_size:
-                self._store.sort(key=lambda x: x[3])
-                self._store = self._store[self._max_size // 4:]  # 淘汰 25%
-            self._store.append((embedding, response, now, now))
-
-    def clear(self) -> None:
-        """清空缓存"""
-        with self._lock:
-            self._store.clear()
 
 
 class CircuitBreaker:
@@ -151,10 +78,14 @@ class LLMClient:
         self._temperature = get("llm.temperature", 0.3)
         self._max_retries = get("llm.max_retries", 3)
         self._backoff_base = get("llm.backoff_base", 1.0)
+        self._backoff_max = get("llm.backoff_max_seconds", 8)
 
         api_key = get("llm.api_key") or "sk-placeholder"
         base_url = get("llm.base_url")
-        client_kwargs = {"api_key": api_key}
+        timeout_s = float(get("llm.timeout_seconds", 15))
+        # SDK 层禁用自带重试（max_retries=0），重试统一由下方 _invoke 循环管理，
+        # 避免 SDK 重试与项目重试叠加导致耗时失控
+        client_kwargs = {"api_key": api_key, "timeout": timeout_s, "max_retries": 0}
         if base_url:
             client_kwargs["base_url"] = base_url
         self._client = OpenAI(**client_kwargs)
@@ -168,14 +99,18 @@ class LLMClient:
 
         self._rate_limiter = RL.from_config()
 
-        # 语义缓存
+        # 语义缓存（惰性导入，避免与 rag 包产生循环依赖；导入失败则降级关闭）
         cache_enabled = get("features.semantic_cache", True)
         if cache_enabled:
-            self._semantic_cache = SemanticCache(
-                similarity_threshold=get("cache.semantic_similarity_threshold", 0.92),
-                ttl_seconds=get("cache.ttl_seconds", 3600),
-                max_size=get("cache.max_size", 1000),
-            )
+            try:
+                from rag.semantic_cache import SemanticCache
+                self._semantic_cache = SemanticCache(
+                    similarity_threshold=get("cache.semantic_similarity_threshold", 0.92),
+                    ttl_seconds=get("cache.ttl_seconds", 3600),
+                    max_size=get("cache.max_size", 1000),
+                )
+            except Exception:
+                self._semantic_cache = None
         else:
             self._semantic_cache = None
 
@@ -232,10 +167,14 @@ class LLMClient:
                     if self._on_call:
                         self._on_call(prompt_tokens, latency_ms)
                     return resp.choices[0].message.content or ""
-                except Exception:
+                except Exception as exc:
+                    # 不可重试错误（鉴权/参数类）直接失败，不消耗重试次数
+                    if not self._is_retryable(exc):
+                        raise
                     if attempt >= self._max_retries:
                         raise
-                    wait = self._backoff_base * (2 ** attempt)
+                    # 指数退避封顶，避免重试耗时失控
+                    wait = min(self._backoff_base * (2 ** attempt), self._backoff_max)
                     time.sleep(wait)
             return ""
 
@@ -251,6 +190,31 @@ class LLMClient:
                 pass
 
         return result
+
+    @staticmethod
+    def _is_retryable(exc: Exception) -> bool:
+        """区分可重试错误：超时/网络/5xx/限流可重试；鉴权/参数错误不可重试"""
+        try:
+            from openai import APIStatusError, AuthenticationError
+
+            if isinstance(exc, AuthenticationError):
+                return False
+            if isinstance(exc, APIStatusError):
+                return exc.status_code in (408, 429, 500, 502, 503, 504)
+        except ImportError:
+            pass
+        # 超时/连接类错误均可重试
+        return True
+
+    def health(self) -> dict:
+        """健康检查：熔断器状态 + 缓存统计（供系统管理页/监控使用）"""
+        return {
+            "provider": self._provider,
+            "model": self._model,
+            "circuit_open": self._circuit.is_open,
+            "circuit_failure_count": self._circuit.failure_count,
+            "cache_stats": self._semantic_cache.stats() if self._semantic_cache else None,
+        }
 
 
 class RateLimitExceededError(Exception):

@@ -1,0 +1,25 @@
+# 版本控制与缓存
+.git
+.gitignore
+venv/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# 数据与日志（保留 mock 种子数据供容器内初始化）
+data/*.db
+data/logs/
+
+# IDE / 本地临时文件
+.qoder/
+.idea/
+.vscode/
+_day*_verify.py
+_probe*.py
+
+# 文档
+*.md
+.dockerignore
+Dockerfile
+docker-compose.yml

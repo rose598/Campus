@@ -7,13 +7,28 @@ from utils.config_loader import get
 
 
 def _tokenize(text: str) -> List[str]:
+    """中文分词：优先 jieba；缺失时用正则词 + 字符二元组降级
+
+    降级策略说明：中文无空格分隔，纯正则会把整句当单个 token
+    导致 BM25 无法命中；字符二元组保证基本匹配能力（Day 24）。
+    """
     try:
         import jieba
-        tokens = list(jieba.cut(text))
+
+        tokens = [t for t in jieba.cut(text) if t.strip()]
+        return tokens
     except ImportError:
-        import re
-        tokens = re.findall(r"[\u4e00-\u9fff]+|[a-zA-Z]+|\d+", text)
-    return [t.strip() for t in tokens if t.strip()]
+        pass
+    import re
+
+    tokens = re.findall(r"[\u4e00-\u9fff]+|[a-zA-Z]+|\d+", text)
+    # 对连续中文段补充字符二元组，提升词面重合概率
+    expanded: List[str] = []
+    for t in tokens:
+        expanded.append(t)
+        if re.match(r"^[\u4e00-\u9fff]+$", t) and len(t) >= 2:
+            expanded.extend(t[i:i + 2] for i in range(len(t) - 1))
+    return [t.strip() for t in expanded if t.strip()]
 
 
 @dataclass
@@ -60,7 +75,9 @@ class BM25Index:
                     title=c.get("title", ""),
                 )
             self._chunks.append(record)
-            self._tokenized.append(_tokenize(record.content))
+            # Day 24 调优：索引文本 = 标题 + 正文。关键词常只出现在标题
+            # （如"保研"），仅索引正文会导致相关文档无法命中。
+            self._tokenized.append(_tokenize(record.title + "\n" + record.content))
 
         if self._tokenized:
             self._index = BM25Okapi(self._tokenized, k1=self._k1, b=self._b)
@@ -87,6 +104,11 @@ class BM25Index:
 
         results: List[Tuple[str, float, str]] = []
         for idx, score in top:
+            # Day 24 调优：无任何词面重合的结果直接过滤。
+            # 不用 score>0 判断：小语料下 IDF 可为 0（词出现在半数文档），
+            # 分数为 0 不代表不相关。
+            if not set(query_tokens) & set(self._tokenized[idx]):
+                continue
             record = self._chunks[idx]
             results.append((record.chunk_id, float(score), record.content))
 
@@ -112,6 +134,9 @@ class BM25Index:
 
         results = []
         for idx, score in top:
+            # Day 24 调优：无任何词面重合的结果直接过滤（同上，不用分数判断）
+            if not set(query_tokens) & set(self._tokenized[idx]):
+                continue
             record = self._chunks[idx]
             results.append({
                 "chunk_id": record.chunk_id,
