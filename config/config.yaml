@@ -5,7 +5,8 @@ app:
 
 llm:
   provider: openai
-  model: gpt-4o-mini
+  model: deepseek-chat          # USTC 校园大模型平台可用模型，经实测对话与 JSON 输出稳定
+  base_url: https://api.llm.ustc.edu.cn/v1   # api_key 从 .env / 环境变量 LLM_API_KEY 读取，勿写入本文件
   temperature: 0.3
   max_retries: 3
   backoff_base: 1.0

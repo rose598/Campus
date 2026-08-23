@@ -2,12 +2,19 @@
 校园知识问答页（02_campus_qa）
 Day 10: 接入 chat_ui 组件，实现对话式问答交互
 Day 13: 全面完善 — 空状态/加载态/错误态 + 欢迎引导 + 知识库统计
-分类 Tab + 热门问题 + 对话历史 + Mock 百事通回答（含来源引用）
+分类 Tab + 热门问题 + 对话历史 + 百事通真实链路（查询改写 → 意图分类 → Hybrid RAG → LLM 生成）
 """
 
+import sys
+from pathlib import Path
 from typing import Optional
 
 import streamlit as st
+
+# 确保项目根目录在 sys.path（后端 agents/rag 等模块可导入）
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 from global_styles import bootstrap_page
 
@@ -203,6 +210,49 @@ def mock_qa_engine(question: str) -> dict:
     return FALLBACK_ANSWER
 
 
+# ── 真实百事通流水线（查询改写 → 意图分类 → Hybrid RAG → LLM 生成）──────
+def real_qa_engine(question: str, history: list) -> dict:
+    """
+    调用真实百事通流水线（agents.parent_graph.node_knowit，内含异常隔离降级）
+
+    Args:
+        question: 用户问题
+        history: 对话历史 [{"role": ..., "content": ...}]，供多轮查询改写使用
+
+    Returns:
+        dict: {"content": str, "sources": list[dict]}
+    """
+    from langchain_core.messages import AIMessage, HumanMessage
+    from agents.parent_graph import node_knowit
+
+    # 携带最近 3 轮对话，供查询改写节点生成自包含查询
+    messages = []
+    for msg in history[-6:]:
+        role = msg.get("role")
+        content = msg.get("content", "") or ""
+        if role == "user":
+            messages.append(HumanMessage(content=content))
+        elif role == "assistant":
+            messages.append(AIMessage(content=content))
+    messages.append(HumanMessage(content=question))
+
+    state = {"messages": messages, "user_id": "web_user", "intent": ""}
+    result = node_knowit(state)
+    qa = result.get("qa_result", {}) or {}
+
+    # 后端来源 {title, category, chunk_id} → 前端展示格式 {title, source, snippet}
+    sources = []
+    for doc in qa.get("sources", []) or []:
+        sources.append({
+            "title": doc.get("title", ""),
+            "source": doc.get("category", "") or "知识库",
+            "snippet": "",
+        })
+
+    content = qa.get("answer", "") or FALLBACK_ANSWER["content"]
+    return {"content": content, "sources": sources}
+
+
 # ── 页面渲染 ──────────────────────────────────────────────────
 
 def render_header():
@@ -307,6 +357,7 @@ def render_chat_section(has_history: bool):
         placeholder="输入你的校园问题...",
         button_label="🔍 提问",
         history_key=QA_HISTORY_KEY,
+        record_message=False,
     )
 
     return user_input
@@ -341,23 +392,27 @@ def render_stats():
 
 def handle_question(question: str) -> None:
     """
-    处理用户提问：记录用户消息 → 调用 Mock 引擎 → 记录助手回答
+    处理用户提问：记录用户消息 → 调用真实百事通流水线 → 记录助手回答
     含错误态处理
 
     Args:
         question: 用户问题文本
     """
-    # 清除之前的错误状态
+    # 清除之前的错误状态（输入框传 record_message=False，用户消息由此处统一记录，
+    # 保证热门问题/欢迎按钮与输入框提交三条路径行为一致且不重复）
     set_state(QA_ERROR_KEY, None)
 
-    # 记录用户消息
-    add_chat_message("user", question, QA_HISTORY_KEY)
+    # 记录用户消息（去重：仅当历史末尾不是相同内容时才追加）
+    history_before = get_state(QA_HISTORY_KEY, [])
+    if not history_before or history_before[-1].get("content") != question:
+        add_chat_message("user", question, QA_HISTORY_KEY)
 
-    # 使用 st.spinner 显示加载状态
+    # 使用 st.spinner 显示加载状态（真实链路需检索 + 大模型生成，首次可能需几秒）
     with st.spinner("🔍 百事通正在知识库中检索答案..."):
         try:
-            # 调用 Mock 问答引擎
-            answer = mock_qa_engine(question)
+            # 调用真实百事通流水线（携带历史供多轮改写）
+            history = get_state(QA_HISTORY_KEY, [])
+            answer = real_qa_engine(question, history)
 
             # 记录助手回答（含来源引用）
             history = get_state(QA_HISTORY_KEY, [])

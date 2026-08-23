@@ -63,6 +63,7 @@ def render_chat_input(
     placeholder: str = "输入你的问题...",
     button_label: str = "📤 发送",
     history_key: str = "chat_history",
+    record_message: bool = True,
 ) -> Optional[str]:
     """
     渲染聊天输入框，返回用户输入的文本（无输入返回 None）
@@ -71,6 +72,8 @@ def render_chat_input(
         placeholder: 输入框占位文本
         button_label: 发送按钮文本
         history_key: 状态中存储聊天历史的 key
+        record_message: 是否在提交时自动记录用户消息；
+            页面侧若自行记录（如热门问题/欢迎按钮路径也需记录）应传 False，避免重复
 
     Returns:
         str 或 None: 用户输入的文本
@@ -94,7 +97,8 @@ def render_chat_input(
         )
 
     if submitted and user_input.strip():
-        add_chat_message("user", user_input.strip(), history_key)
+        if record_message:
+            add_chat_message("user", user_input.strip(), history_key)
         return user_input.strip()
 
     return None

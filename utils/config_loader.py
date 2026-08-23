@@ -10,6 +10,14 @@ _config_cache: Optional[dict] = None
 _last_mtime: float = 0
 _lock = threading.Lock()
 
+# 启动时加载项目根目录 .env（存放 LLM_API_KEY 等密钥，已被 .gitignore 排除）；
+# 真实环境变量优先级更高（dotenv 默认不覆盖已有环境变量）
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_ROOT / ".env")
+except ImportError:
+    pass
+
 
 def _find_project_root() -> Path:
     marker = Path(__file__).resolve().parent.parent

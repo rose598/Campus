@@ -307,7 +307,10 @@ def handle_buddy_question(question: str, course_code: str) -> None:
     """
     set_state(BUDDY_ERROR_KEY, None)
 
-    add_chat_message("user", question, BUDDY_HISTORY_KEY)
+    # 记录用户消息（去重：仅当历史末尾不是相同内容时才追加）
+    history_before = get_state(BUDDY_HISTORY_KEY, [])
+    if not history_before or history_before[-1].get("content") != question:
+        add_chat_message("user", question, BUDDY_HISTORY_KEY)
 
     # 使用 st.spinner 显示加载状态
     with st.spinner("🤔 学伴正在从课程资料中查找答案..."):
@@ -422,6 +425,7 @@ def main():
         placeholder=f"问我关于{course_name}的任何问题...",
         button_label="🔍 提问",
         history_key=BUDDY_HISTORY_KEY,
+        record_message=False,
     )
 
     if user_input:
