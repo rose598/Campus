@@ -126,18 +126,21 @@ class DataImporter:
         json_path: str | Path,
         content_field: str = "content",
         title_field: str = "title",
+        field_aliases: Dict[str, List[str]] | None = None,
     ) -> Dict:
         """
         从 JSON 文件导入数据（爬虫输出格式）。
 
         Args:
             json_path: JSON 文件路径
-            content_field: 内容字段名
+            content_field: 内容字段名（主字段，缺失时回退 field_aliases 中的备选）
             title_field: 标题字段名
+            field_aliases: 字段别名表，如 {"content": ["description"], "publish_date": ["event_time"]}
 
         Returns:
             {"annotated": [...], "chunks": {...}, "stats": {...}}
         """
+        field_aliases = field_aliases or {}
         path = Path(json_path)
         if not path.exists():
             logger.error("文件不存在: %s", path)
@@ -154,6 +157,12 @@ class DataImporter:
         parsed_docs = []
         for item in items:
             content = item.get(content_field, "")
+            # 备选字段兜底（如活动数据的 description）
+            if (not content or not content.strip()) and content_field in field_aliases:
+                for alias in field_aliases[content_field]:
+                    content = item.get(alias, "")
+                    if content and content.strip():
+                        break
             if not content or not content.strip():
                 continue
 
@@ -172,6 +181,17 @@ class DataImporter:
                     if k not in (content_field, title_field, "url") and isinstance(v, (str, int, float))
                 },
             ))
+
+            # 字段别名映射到元数据主键（供标注器读取发布日期等）
+            meta = parsed_docs[-1].metadata
+            for main_field, aliases in field_aliases.items():
+                if main_field == content_field or meta.get(main_field):
+                    continue
+                for alias in aliases:
+                    v = item.get(alias, "")
+                    if v and isinstance(v, (str, int, float)):
+                        meta[main_field] = v
+                        break
 
         # 清洗
         cleaned_docs = self._cleaner.clean_batch(parsed_docs)
@@ -235,6 +255,22 @@ class DataImporter:
                 logger.warning("[Import] Embedding 不可用，跳过 Dense 索引: %s", e)
 
         builder.build_from_documents(annotated, chunks_map, embedding_client)
+
+        # 保留已有 course 分类索引（避免全量重建时丢失课程数据）
+        output_path = Path(output_dir)
+        if (output_path / "course" / "bm25").exists():
+            try:
+                old = IndexBuilder.load(output_path)
+                course_chunks = old._category_bm25["course"]._docs
+                if course_chunks:
+                    builder._category_bm25["course"].build(course_chunks)
+                    builder._global_bm25.build(builder._global_bm25._docs + course_chunks)
+                    for doc_id, meta in old._doc_meta.items():
+                        builder._doc_meta.setdefault(doc_id, meta)
+                    logger.info("[Import] 已合并既有 course 分类索引: %d 块", len(course_chunks))
+            except Exception as e:
+                logger.warning("[Import] 合并既有 course 索引失败: %s", e)
+
         builder.save(output_dir)
 
         stats = builder.stats()
@@ -246,6 +282,118 @@ class DataImporter:
 # ─────────────────────────────────────────────
 #  验证脚本
 # ─────────────────────────────────────────────
+
+def persist_to_db(
+    annotated: List[AnnotatedDocument],
+    chunks_map: Dict[str, List[Dict]],
+    import_courses: bool = True,
+    import_events: bool = True,
+) -> Dict:
+    """
+    全量入库：documents / chunks / courses / events 四张表。
+    幂等：重复执行时已有记录被覆盖/去重。
+    """
+    import sqlite3
+    from database.connection import get_connection, init_db
+
+    init_db()
+    stats = {"documents": 0, "chunks": 0, "courses": 0, "events": 0}
+
+    conn = get_connection()
+    try:
+        # 1. 文档 + 分块（与索引对齐）
+        for doc in annotated:
+            conn.execute("""
+                INSERT OR REPLACE INTO documents
+                (doc_id, category, title, content, source_url, publish_date, expiry_date, tags, confidence)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                doc.doc_id, doc.category, doc.title, doc.content,
+                doc.source_url,
+                str(doc.publish_date) if doc.publish_date else None,
+                str(doc.expiry_date) if doc.expiry_date else None,
+                json.dumps(doc.tags or [], ensure_ascii=False),
+                doc.confidence,
+            ))
+            stats["documents"] += 1
+
+            for pos, chunk in enumerate(chunks_map.get(doc.doc_id, [])):
+                conn.execute("""
+                    INSERT OR REPLACE INTO chunks
+                    (chunk_id, doc_id, content, parent_headings, position)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    chunk["chunk_id"], doc.doc_id, chunk["content"],
+                    json.dumps(chunk.get("parent_headings", []), ensure_ascii=False),
+                    pos,
+                ))
+                stats["chunks"] += 1
+
+        # 2. 课程（来自 course_processed.json）
+        if import_courses:
+            course_path = Path("data/processed/course_indexes/course_processed.json")
+            if course_path.exists():
+                with open(course_path, "r", encoding="utf-8") as f:
+                    course_data = json.load(f)
+                for course in course_data.get("courses", []):
+                    info = course.get("course_info", {})
+                    knowledge = course.get("knowledge", {})
+                    description = ""
+                    if isinstance(knowledge, dict):
+                        overview = knowledge.get("overview", "")
+                        if overview:
+                            description = str(overview)[:300]
+                    conn.execute("""
+                        INSERT OR REPLACE INTO courses
+                        (code, name, credits, semester, teacher, description, prerequisites)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        info.get("course_id", ""),
+                        info.get("course_name", ""),
+                        float(info.get("credits", 0) or 0),
+                        info.get("semester", ""),
+                        info.get("teacher", ""),
+                        description,
+                        json.dumps(info.get("prerequisites", []), ensure_ascii=False),
+                    ))
+                    stats["courses"] += 1
+
+        # 3. 活动（来自 sample_activities.json）
+        if import_events:
+            event_path = Path("data/raw/activities/sample_activities.json")
+            if event_path.exists():
+                with open(event_path, "r", encoding="utf-8") as f:
+                    activities = json.load(f)
+                for item in activities:
+                    url = item.get("url") or ""
+                    title = item.get("title", "")
+                    # 幂等：先删除同源记录再插入（events 无唯一键）
+                    if url:
+                        conn.execute("DELETE FROM events WHERE url = ?", (url,))
+                    elif title:
+                        conn.execute("DELETE FROM events WHERE title = ?", (title,))
+                    conn.execute("""
+                        INSERT INTO events (title, event_type, date, location, organizer, url)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        title,
+                        item.get("type", "other"),
+                        item.get("event_time") or None,
+                        item.get("location") or None,
+                        item.get("organizer") or None,
+                        url or None,
+                    ))
+                    stats["events"] += 1
+
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise RuntimeError(f"入库失败: {e}") from e
+    finally:
+        conn.close()
+
+    return stats
+
 
 def verify_indexes(index_dir: str | Path = "data/processed/indexes") -> Dict:
     """
@@ -367,6 +515,11 @@ def main():
         )
         print(f"索引统计: {json.dumps(builder.stats(), indent=2, ensure_ascii=False)}")
 
+        # SQLite 入库
+        print(f"\n=== SQLite 入库 ===")
+        db_stats = persist_to_db(all_annotated, all_chunks_map)
+        print(f"入库完成: {json.dumps(db_stats, ensure_ascii=False)}")
+
         # 验证
         print(f"\n=== 索引验证 ===")
         result = verify_indexes(args.output)
@@ -390,7 +543,14 @@ def _import_dir(importer, source_dir, dtype, all_annotated, all_chunks_map):
 
     if json_files:
         for jf in json_files:
-            result = importer.import_from_json(jf)
+            # 活动数据字段与默认管道不同（description/event_time），提供别名映射
+            aliases = None
+            if "activities" in str(source_dir).replace("\\", "/"):
+                aliases = {
+                    "content": ["description"],
+                    "publish_date": ["event_time", "crawl_time"],
+                }
+            result = importer.import_from_json(jf, field_aliases=aliases)
             all_annotated.extend(result["annotated"])
             all_chunks_map.update(result["chunks"])
             print(f"  JSON {jf.name}: {json.dumps(result['stats'], ensure_ascii=False)}")

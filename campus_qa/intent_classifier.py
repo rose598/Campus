@@ -3,7 +3,7 @@ intent_classifier.py — 意图分类器
 
 职责:
   - 对用户问题进行意图分类
-  - 分类类别: policy（政策）/ life（生活）/ course（课程）/ general（通用）
+  - 分类类别: policy（政策）/ life（生活）/ course（课程）/ activity（活动）/ general（通用）
   - 支持 LLM 分类（高精度）和规则分类（离线兜底）
   - 输出分类结果 + 置信度
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 class IntentResult(BaseModel):
     """意图分类结果"""
-    intent: Literal["policy", "life", "course", "general"] = Field(
+    intent: Literal["policy", "life", "course", "activity", "general"] = Field(
         default="general",
         description="意图类别",
     )
@@ -81,6 +81,14 @@ _COURSE_KEYWORDS = {
     "先修": ["先修", "前置课程", "prerequisite"],
     "评分": ["评分标准", "考核方式", "成绩构成", "平时分"],
     "学时": ["学时", "课时", "课程安排"],
+    "教材": ["教材", "参考书", "参考资料", "指定用书"],
+}
+
+_ACTIVITY_KEYWORDS = {
+    "讲座": ["讲座", "报告会", "学术报告", "大讲堂", "论坛", "宣讲", "seminar", "思政课"],
+    "竞赛": ["竞赛", "比赛", "大赛", "挑战赛", "选拔赛", "建模", "Hackathon", "ICPC", "创新创业"],
+    "科研活动": ["大创", "SRF", "科研训练", "本科生科研", "科研项目", "招募", "招收", "项目申报"],
+    "培训": ["培训", "训练营", "动员会"],
 }
 
 # 通用模式 → 分类映射
@@ -105,9 +113,16 @@ _INTENT_PATTERNS = {
         re.compile(r"(先修|前置|prerequisite)", re.I),
         re.compile(r"(哪|那|这).*(门|节|堂).*(课|讲)", re.I),
     ],
+    "activity": [
+        re.compile(r"(有什么|有哪些|近期|最近|本周|下周|本月).*(讲座|报告|比赛|竞赛|活动|大赛)", re.I),
+        re.compile(r"(讲座|报告会|大赛|竞赛|比赛|挑战赛).*(时间|地点|报名|参加|在哪|什么时候|怎么报)", re.I),
+        re.compile(r"(怎么|如何|哪里).*(报名|参赛|组队)", re.I),
+        re.compile(r"(报名|参赛).*(截止|方式|链接|时间)", re.I),
+        re.compile(r"(科研|项目|课题).*(申请|报名|招募|招收|加入)", re.I),
+    ],
 }
 
-# 子意图检测
+# 子意图检测（activity 不纳入子意图体系，单独识别）
 _SUB_INTENT_MAP = {
     "policy": _POLICY_KEYWORDS,
     "life": _LIFE_KEYWORDS,
@@ -200,8 +215,8 @@ class IntentClassifier:
           - 多关键词叠加提升置信度
         """
         text = f"{query} {context or ''}".lower()
-        scores = {"policy": 0, "life": 0, "course": 0}
-        matched_keywords = {"policy": [], "life": [], "course": []}
+        scores = {"policy": 0, "life": 0, "course": 0, "activity": 0}
+        matched_keywords = {"policy": [], "life": [], "course": [], "activity": []}
 
         # 1. 关键词匹配（精确匹配，避免子串误匹配）
         for intent, keyword_groups in _SUB_INTENT_MAP.items():
@@ -213,6 +228,15 @@ class IntentClassifier:
                         if sub_intent not in matched_keywords[intent]:
                             matched_keywords[intent].append(sub_intent)
                         scores[intent] += 2
+
+        # 1b. 活动关键词（独立计分，不占用子意图体系）
+        for sub_intent, keywords in _ACTIVITY_KEYWORDS.items():
+            for kw in keywords:
+                if kw.lower() in text:
+                    if sub_intent not in matched_keywords["activity"]:
+                        matched_keywords["activity"].append(sub_intent)
+                    scores["activity"] += 2
+                    break
 
         # 2. 模式匹配（加权）
         for intent, patterns in _INTENT_PATTERNS.items():
@@ -252,10 +276,11 @@ class IntentClassifier:
         """
         使用 LLM 进行意图分类。
         """
-        system_prompt = """你是校园问答意图分类器。请将用户问题分类为以下四类之一：
+        system_prompt = """你是校园问答意图分类器。请将用户问题分类为以下五类之一：
 - policy：教务政策类（保研、转专业、选课、补考、学籍、毕业、奖学金等）
 - life：校园生活类（宿舍、食堂、图书馆、交通、网络、医疗等）
 - course：课程资料类（课程大纲、复习资料、考试、作业、教师等）
+- activity：校园活动类（讲座、竞赛、科研机会、培训、报名参赛等）
 - general：无法归类的通用问题
 
 同时提取子意图关键词（如保研、转专业等）。
@@ -279,7 +304,7 @@ class IntentClassifier:
             data = json.loads(clean)
 
             intent = data.get("intent", "general")
-            if intent not in ("policy", "life", "course", "general"):
+            if intent not in ("policy", "life", "course", "activity", "general"):
                 intent = "general"
 
             return IntentResult(
@@ -313,6 +338,8 @@ if __name__ == "__main__":
         ("奖学金怎么申请？", "policy"),
         ("四六级什么时候报名？", "policy"),
         ("校园网密码忘了怎么办？", "life"),
+        ("最近有什么讲座？", "activity"),
+        ("数学建模竞赛什么时候报名？", "activity"),
         ("今天天气怎么样？", "general"),
     ]
 

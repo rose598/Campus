@@ -84,8 +84,24 @@ class DataQualityEvaluator:
       4. 均衡性：各类别数据量是否合理
     """
 
-    # 必需字段
+    # 必需字段（含别名：活动数据用 description/event_time）
     REQUIRED_FIELDS = ["title", "content", "publish_date"]
+    FIELD_ALIASES = {
+        "content": ["description"],
+        "publish_date": ["event_time"],
+    }
+
+    @classmethod
+    def _get_field(cls, item: Dict[str, Any], field: str) -> Any:
+        """按主字段名或别名取值"""
+        value = item.get(field)
+        if value:
+            return value
+        for alias in cls.FIELD_ALIASES.get(field, []):
+            value = item.get(alias)
+            if value:
+                return value
+        return value
 
     # 内容长度阈值
     MIN_CONTENT_LENGTH = 50
@@ -108,9 +124,13 @@ class DataQualityEvaluator:
 
         metrics.total_items = len(items)
 
+        # 活动类数据（含 type 字段）的必需字段不含日期（活动通知常无明确日期）
+        is_activity_source = any("type" in item and "title" in item for item in items[:5])
+        required = ["title", "content"] if is_activity_source else self.REQUIRED_FIELDS
+
         # 逐条评估
         for item in items:
-            self._evaluate_item(item, metrics)
+            self._evaluate_item(item, metrics, required_fields=required)
 
         # 汇总评估
         self._evaluate_overall(metrics)
@@ -146,24 +166,26 @@ class DataQualityEvaluator:
 
         return items
 
-    def _evaluate_item(self, item: Dict[str, Any], metrics: QualityMetrics):
+    def _evaluate_item(self, item: Dict[str, Any], metrics: QualityMetrics,
+                       required_fields: Optional[List[str]] = None):
         """评估单个数据项"""
         is_valid = True
+        required_fields = required_fields or self.REQUIRED_FIELDS
 
-        # 1. 完整性检查
-        for field in self.REQUIRED_FIELDS:
-            if field not in item or not item[field]:
+        # 1. 完整性检查（支持字段别名）
+        for field in required_fields:
+            if not self._get_field(item, field):
                 metrics.completeness.setdefault(field, {"total": 0, "missing": 0})
                 metrics.completeness[field]["missing"] += 1
                 is_valid = False
 
         # 记录完整性统计
-        for field in self.REQUIRED_FIELDS:
+        for field in required_fields:
             metrics.completeness.setdefault(field, {"total": 0, "missing": 0})
             metrics.completeness[field]["total"] += 1
 
-        # 2. 内容长度检查
-        content = item.get("content", "")
+        # 2. 内容长度检查（支持 description 别名）
+        content = self._get_field(item, "content") or ""
         content_len = len(content)
         metrics.content_lengths.append(content_len)
 
@@ -173,13 +195,13 @@ class DataQualityEvaluator:
         elif content_len > self.MAX_CONTENT_LENGTH:
             metrics.warnings.append(f"内容过长 ({content_len} 字符): {item.get('title', 'N/A')[:30]}")
 
-        # 3. 分类检查
-        category = item.get("category", "unknown")
+        # 3. 分类检查（活动数据用 type 字段）
+        category = item.get("category") or item.get("type") or "unknown"
         metrics.categories[category] = metrics.categories.get(category, 0) + 1
 
-        # 4. 日期格式检查
-        pub_date = item.get("publish_date", "")
-        if pub_date and not self._is_valid_date(pub_date):
+        # 4. 日期格式检查（活动数据的 event_time 常为自由文本，放宽校验）
+        pub_date = self._get_field(item, "publish_date") or ""
+        if pub_date and not self._is_valid_date(pub_date) and "event_time" not in item:
             metrics.warnings.append(f"日期格式异常: {pub_date}")
 
         if is_valid:
