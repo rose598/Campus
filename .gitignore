@@ -32,3 +32,9 @@ data/graphcampus.db
 # Logs
 data/logs/
 *.log
+
+# Offline deploy artifacts (large wheels/model cache/zip, regenerate locally)
+deploy_offline/pkgs/
+deploy_offline/hf_cache/
+deploy_offline/*.zip
+graphcampus_offline_deploy.zip

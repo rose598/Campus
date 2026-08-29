@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from utils.config_loader import get
-from database.connection import get_connection
+from database.connection import get_connection, init_db
 
 
 def _load_json(path: Path) -> list:
@@ -161,6 +161,9 @@ def main():
     args = parser.parse_args()
 
     data_dir = ROOT / "data"
+
+    # 确保数据库表存在（增量模式同样适用全新环境）
+    init_db()
 
     if args.reset:
         reset_tables()

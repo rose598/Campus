@@ -1,0 +1,18 @@
+[Unit]
+Description=GraphCampus - Campus AI Assistant
+After=network.target
+
+[Service]
+Type=simple
+# 部署用户（按实际用户修改）
+User=graphcampus
+# 部署目录（按实际路径修改）
+WorkingDirectory=/opt/graphcampus
+Environment=HF_HOME=/opt/graphcampus/deploy_offline/hf_cache
+Environment=HF_HUB_OFFLINE=1
+ExecStart=/opt/graphcampus/venv/bin/streamlit run frontend/app.py --server.address=0.0.0.0 --server.port=8501
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
